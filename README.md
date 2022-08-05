@@ -1,6 +1,6 @@
 [MiSTer_web2rgbmatrix](https://github.com/kconger/MiSTer_web2rgbmatrix) is an hardware and software addon for the [MiSTer FPGA](https://github.com/MiSTer-devel). Heavily inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) projects.
 
-This module displays the anitmated GIF logo of current the running core on a RGB Matrix. If the current core logo isn't available the MiSTer logo is displayed.
+This module displays the animated GIF logo of current the running core on a RGB Matrix. If the current core logo isn't available the MiSTer logo is displayed.
 
 Current features
 -------
