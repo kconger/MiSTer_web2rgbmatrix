@@ -79,9 +79,9 @@ void setup(void) {
   gif.begin(LITTLE_ENDIAN_PIXELS);
 
   // Initialize Display
-  displaySetup();
-  dma_display->setCursor(0, 0);
-  dma_display->println("rgbmatrix");
+  //displaySetup();
+  //dma_display->setCursor(0, 0);
+  //dma_display->println("rgbmatrix");
 
   // Initialize Wifi
   parseSecrets();
@@ -140,20 +140,21 @@ void loop(void) {
         last_seen = millis();
         bool success = Ping.ping(client_ip, 1);
         if(!success){
-          DBG_OUTPUT_PORT.println("Ping failed");
+          DBG_OUTPUT_PORT.println("Initial Ping failed");
           ping_fail = ping_fail + 1;
         } else {
           DBG_OUTPUT_PORT.println("Ping succesful.");
           ping_fail = 0;
         }
       }
-    } else if (ping_fail >= 1){ // Increase ping frequecy after first failure
+    } else if (ping_fail >= 1 && ping_fail < 4){ // Increase ping frequecy after first failure
       if (millis() - last_seen >= 10*1000UL){
         last_seen = millis();
         bool success = Ping.ping(client_ip, 1);
         if(!success){
-          DBG_OUTPUT_PORT.println("Ping failed");
+          DBG_OUTPUT_PORT.print("Ping fail count: ");
           ping_fail = ping_fail + 1;
+          DBG_OUTPUT_PORT.println(ping_fail);
         } else {
           DBG_OUTPUT_PORT.println("Ping succesful.");
           ping_fail = 0;
@@ -162,7 +163,7 @@ void loop(void) {
     } else if (ping_fail >= 4){
       //Client gone clear display
       DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
-      dma_display->clearScreen();
+      //dma_display->clearScreen();
       client_ip = {0,0,0,0};
       FILESYSTEM.remove(gif_filename);
     }
@@ -307,7 +308,7 @@ void handleFilePlay(){
       client_ip = server.client().remoteIP();
       DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
       server.send(200,"text/plain","SUCCESS");
-      ShowGIF(gif_filename);
+      //ShowGIF(gif_filename);
     } else {
       returnFail("Couldn't create file");
     }
