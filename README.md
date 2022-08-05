@@ -28,9 +28,13 @@ Linux/MiSTer service code from the [MiSTer_tty2oled](https://github.com/venice12
 Install
 -------
 
-1. **MiSTer Setup**
+1. **Assemble**
 
-Copy web2rgbmatrix folder to root of your MiSTer_Data partition.
+Assemble the hardware
+
+2. **MiSTer Setup**
+
+Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition.
 
 Copy your GIF files into the web2rgbmatrix/gifs/ directory.  Name the gif you want to use for the core, CoreName.gif.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of GIFs you can use.
 
@@ -40,14 +44,13 @@ Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
 /media/fat/web2rgbmatrix/S60web2rgbmatrix start
 ```
 
-2. **Hardware Setup**
+3. **Hardware Setup**
 
 Flash the Arduino sketch to the board using Arduino IDE
 
-3. **Assemble**
-
-Assemble hardware
 
 4. **Configure rgbmatrix**
 
 Initially the rgbmatrix starts up in AP mode with a SSID of 'rgbmatrix' and the password 'password'.  Once connected go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
+
+If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the 'HOSTNAME' variable in the web2rgbmatrix.conf file.
