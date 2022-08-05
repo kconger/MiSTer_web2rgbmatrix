@@ -1,0 +1,6 @@
+All: Test with actual hardware
+Linux: Check if Core GIF exists if not send the MiSTer GIF
+Linux: Add retry to web requests if they fail
+Arduino: Add ability to upload a default GIF for bootup
+Arduino: Add boot option (No image/defaullt.gif)
+Arduino: Apply some basic styling to web site.

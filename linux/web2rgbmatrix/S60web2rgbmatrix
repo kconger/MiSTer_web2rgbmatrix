@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# web2rgbmatrix Daemon Script
+#
+
+. /media/fat/web2rgbmatrix/web2rgbmatrix.conf
+
+# Start
+start() {
+    ### Wait for USB module and start tty2epaper daemon
+    WAITEND=$((SECONDS+10))
+    while !  [ -c ${TTYDEV} ] && [ ${SECONDS} -lt ${WAITEND} ]; do
+      sleep 0.1
+    done
+
+    if [[ -x ${DAEMONSCRIPT} ]]; then
+      echo "Starting ${DAEMONNAME}..."
+      ${DAEMONSCRIPT} &
+    else
+      echo "${DAEMONSCRIPT} not found!"
+    fi
+}
+
+# Stop
+stop() {
+    echo "Stopping ${DAEMONNAME}..."
+    killall ${DAEMONNAME}
+}
+
+case "$1" in
+  start)
+        start
+        ;;
+  stop) 
+        stop
+        ;;
+  restart)
+        stop
+        start
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac
