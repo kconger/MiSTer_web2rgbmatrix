@@ -17,7 +17,7 @@ dbug() {
 
 # Send Core GIF image over the web
 senddata() {
-	curl -F 'file=@${WEB2RGBMATRIX_PATH}/gifs/${1}.gif' http://${HOSTNAME}/play
+	curl -F file=@${WEB2RGBMATRIX_PATH}/gifs/${1}.gif http://${HOSTNAME}/play
 }
 
 while true; do                                                                # main loop
@@ -26,8 +26,8 @@ while true; do                                                                # 
     echo "Read CORENAME: -${NEWCORE}-"
     dbug "Read CORENAME: -${NEWCORE}-"
     if [ "${NEWCORE}" != "${OLDCORE}" ]; then                                 # proceed only if Core has changed
-      echo "Send -${NEWCORE}- to ${TTYDEV}."
-      dbug "Send -${NEWCORE}- to ${TTYDEV}."
+      echo "Send -${NEWCORE} GIF - to http://${HOSTNAME}/play ."
+      dbug "Send -${NEWCORE} GIF - to http://${HOSTNAME}/play ."
       senddata "${NEWCORE}"                                                   # The "Magic"
       OLDCORE="${NEWCORE}"                                                    # update oldcore variable
     fi                                                                        # end if core check
