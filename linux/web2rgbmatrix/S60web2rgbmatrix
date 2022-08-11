@@ -7,12 +7,6 @@
 
 # Start
 start() {
-    ### Wait for USB module and start tty2epaper daemon
-    WAITEND=$((SECONDS+10))
-    while !  [ -c ${TTYDEV} ] && [ ${SECONDS} -lt ${WAITEND} ]; do
-      sleep 0.1
-    done
-
     if [[ -x ${DAEMONSCRIPT} ]]; then
       echo "Starting ${DAEMONNAME}..."
       ${DAEMONSCRIPT} &
