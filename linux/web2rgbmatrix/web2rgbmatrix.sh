@@ -17,7 +17,13 @@ dbug() {
 
 # Send Core GIF image over the web
 senddata() {
-	curl -F file=@${WEB2RGBMATRIX_PATH}/gifs/${1}.gif http://${HOSTNAME}/play
+  if [ -r ${WEB2RGBMATRIX_PATH}/gifs/${1}.gif ]; then                          # proceed if file exists and is readable (-r)
+    curl -F file=@${WEB2RGBMATRIX_PATH}/gifs/${1}.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
+  else                                                                         # CORENAME.gif file not found
+    echo "File ${WEB2RGBMATRIX_PATH}/gifs/${1}.gif not found!"
+    dbug "File ${WEB2RGBMATRIX_PATH}/gifs/${1}.gif not found!"
+    curl -F file=@${WEB2RGBMATRIX_PATH}/gifs/MENU.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
+  fi     
 }
 
 while true; do                                                                # main loop
