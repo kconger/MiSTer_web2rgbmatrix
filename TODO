@@ -1,7 +1,2 @@
-Linux: Check if Core GIF exists if not send the MiSTer GIF
-Arduino/Linux: Speed up transfer time
-Arduino: Check if GIF is correct size after upload
-Arduino: Add ability to upload a default GIF for bootup
-Arduino: Add boot option (No image/defaullt.gif)
-Arduino: Apply some basic styling to web site.
+Arduino/Linux: Speed up transfer time if possible
 Arduino: Add SDCard local GIF cache
