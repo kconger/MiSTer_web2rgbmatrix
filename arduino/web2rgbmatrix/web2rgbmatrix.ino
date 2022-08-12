@@ -35,8 +35,11 @@ MatrixPanel_I2S_DMA *dma_display = nullptr;
 
 WebServer server(80);
 
+IPAddress my_ip;
 IPAddress no_ip(0,0,0,0);
 IPAddress client_ip(0,0,0,0);
+
+bool config_display_on = true;
 unsigned long last_seen, start_tick;
 int ping_fail = 0;
 
@@ -80,8 +83,6 @@ void setup(void) {
 
   // Initialize Display
   displaySetup();
-  dma_display->setCursor(0, 0);
-  dma_display->println("rgbmatrix");
 
   // Initialize Wifi
   parseSecrets();
@@ -103,13 +104,23 @@ void setup(void) {
     // Startup Access Point
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ap, ap_password);
-    IPAddress myIP = WiFi.softAPIP();
+    my_ip = WiFi.softAPIP();
     DBG_OUTPUT_PORT.print("IP address: ");
-    DBG_OUTPUT_PORT.println(myIP);
+    DBG_OUTPUT_PORT.println(my_ip.toString());
   } else {
+    my_ip = WiFi.localIP();
     DBG_OUTPUT_PORT.print("Connected! IP address: ");
-    DBG_OUTPUT_PORT.println(WiFi.localIP());
+    DBG_OUTPUT_PORT.println(my_ip.toString());
   }
+
+  String wifi_mode = "AP";
+  if(WiFi.status() == WL_CONNECTED){
+    wifi_mode = "Client";
+  }
+  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode;
+
+  dma_display->setCursor(0, 0);
+  dma_display->println(display_string);
 
   // Startup MDNS 
   if (MDNS.begin(hostname)) {
@@ -125,14 +136,21 @@ void setup(void) {
   server.on("/play", HTTP_POST, [](){ server.send(200);}, handleFilePlay);
   server.onNotFound(handleNotFound);
   server.begin();
-  DBG_OUTPUT_PORT.println("HTTP server started");
-
+  
+  start_tick = millis();
   digitalWrite(LED, HIGH);
+  DBG_OUTPUT_PORT.println("Startup Complete");
 } /* setup() */
 
 void loop(void) {
   server.handleClient();
   delay(2);
+  //Clear initial display
+  if (config_display_on && (millis() - start_tick >= 60*1000UL)){
+    config_display_on = false;
+    DBG_OUTPUT_PORT.println("Clearing config screen");
+    dma_display->clearScreen();
+  }
   //Check if client who requested core image has gone away, if so clear screen
   if(client_ip != no_ip){
     if (ping_fail == 0){
@@ -205,13 +223,13 @@ void returnFail(String msg) {
 } /* returnFail() */
 
 void handleRoot() {
-  String wifiMode = "AP";
+  String wifi_mode = "AP";
   if(WiFi.status() == WL_CONNECTED){
-    wifiMode = "Client";
+    wifi_mode = "Client";
   }
-  String imageHtml = "None";
+  String image_html = "None";
   if (FILESYSTEM.exists(gif_filename)){
-    imageHtml = "Client IP: " + client_ip.toString() + "<br>"\
+    image_html = "Client IP: " + client_ip.toString() + "<br>"\
     "Current Image<br>"\
     "<img src=\"/core.gif\"><img><br>";
   }
@@ -237,8 +255,9 @@ void handleRoot() {
     <h1>web2rgbmatrix</h1><br>\
     <p>\
     <b>Status</b><br>\
-    Wifi Mode: " + wifiMode + "<br>"
-    + imageHtml + "<br>\
+    Wifi Mode: " + wifi_mode + "<br>"
+    + "rgbmatrix IP: " + my_ip.toString() + "<br"
+    + image_html + "<br>\
     <p>\
     <b>Wifi Client Settings</b><br>\
     <form action=\"/\">\
@@ -263,12 +282,12 @@ void handleRoot() {
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
-      File dataFile = FILESYSTEM.open(secrets_filename, FILE_WRITE);
-      if (!dataFile) {
+      File data_file = FILESYSTEM.open(secrets_filename, FILE_WRITE);
+      if (!data_file) {
         response = "Failed to open config file for writing";
         returnFail(response);
       }
-      serializeJson(doc, dataFile);
+      serializeJson(doc, data_file);
       response = "Config Saved";
       html =
         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\ 
@@ -331,34 +350,34 @@ void handleReboot() {
 } /* handleReboot() */
 
 bool loadFromFlash(String path) {
-  String dataType = "text/plain";
+  String data_type = "text/plain";
   if (path.endsWith("/")) {
     path += "index.html";
   }
   if (path.endsWith(".src")) {
     path = path.substring(0, path.lastIndexOf("."));
   } else if (path.endsWith(".htm")) {
-    dataType = "text/html";
+    data_type = "text/html";
   } else if (path.endsWith(".html")) {
-    dataType = "text/html";
+    data_type = "text/html";
   } else if (path.endsWith(".css")) {
-    dataType = "text/css";
+    data_type = "text/css";
   } else if (path.endsWith(".js")) {
-    dataType = "application/javascript";
+    data_type = "application/javascript";
   } else if (path.endsWith(".png")) {
-    dataType = "image/png";
+    data_type = "image/png";
   } else if (path.endsWith(".gif")) {
-    dataType = "image/gif";
+    data_type = "image/gif";
   } else if (path.endsWith(".jpg")) {
-    dataType = "image/jpeg";
+    data_type = "image/jpeg";
   } else if (path.endsWith(".ico")) {
-    dataType = "image/x-icon";
+    data_type = "image/x-icon";
   } else if (path.endsWith(".xml")) {
-    dataType = "text/xml";
+    data_type = "text/xml";
   } else if (path.endsWith(".pdf")) {
-    dataType = "application/pdf";
+    data_type = "application/pdf";
   } else if (path.endsWith(".zip")) {
-    dataType = "application/zip";
+    data_type = "application/zip";
   }
   
   if (! FILESYSTEM.exists(path.c_str())) {
@@ -366,21 +385,21 @@ bool loadFromFlash(String path) {
     return false;
   }
   
-  File dataFile = FILESYSTEM.open(path.c_str());
-  if (! dataFile) {
+  File data_file = FILESYSTEM.open(path.c_str());
+  if (! data_file) {
     DBG_OUTPUT_PORT.println("..couldn't open?");
     return false;
   }
 
   if (server.hasArg("download")) {
-    dataType = "application/octet-stream";
+    data_type = "application/octet-stream";
   }
 
-  if (server.streamFile(dataFile, dataType) != dataFile.size()) {
+  if (server.streamFile(data_file, data_type) != data_file.size()) {
     DBG_OUTPUT_PORT.println("Sent less data than expected!");
   }
   DBG_OUTPUT_PORT.println("Sent file");
-  dataFile.close();
+  data_file.close();
   return true;
 } /* loadFromFlash() */
 
@@ -388,7 +407,7 @@ void handleNotFound() {
   if (loadFromFlash(server.uri())) {
     return;
   }
-  String message = "Internal Flash Not Detected\n\n";
+  String message = "File Not Found\n\n";
   message += "URI: ";
   message += server.uri();
   message += "\nMethod: ";
@@ -444,14 +463,27 @@ void displaySetup() {
   // If you are using a 64x64 matrix you need to pass a value for the E pin
   // The trinity connects GPIO 18 to E.
   // This can be commented out for any smaller displays (but should work fine with it)
-  mxconfig.gpio.e = 18;
+  //mxconfig.gpio.e = 18;
 
+  //Pins for a Adafruit Feather ESP32-S2
   //swap green and blue for my specific rgb panels
-  mxconfig.gpio.b1 = 26;
+  mxconfig.gpio.b1 = 39;
   mxconfig.gpio.b2 = 12;
 
-  mxconfig.gpio.g1 = 27;
+  mxconfig.gpio.g1 = 10;
   mxconfig.gpio.g2 = 13;
+
+  mxconfig.gpio.r1 = 38;
+  mxconfig.gpio.r2 = 11;
+
+  mxconfig.gpio.a = 18;
+  mxconfig.gpio.b = 17;
+  mxconfig.gpio.c = 16;
+  mxconfig.gpio.d = 15;
+
+  mxconfig.gpio.clk = 9;
+  mxconfig.gpio.lat = 5;
+  mxconfig.gpio.oe = 6;
 
   // May or may not be needed depending on your matrix
   // Example of what needing it looks like:
@@ -593,16 +625,10 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
 } /* GIFSeekFile() */
 
 void ShowGIF(const char *name) {
-  start_tick = millis();
   if (gif.open(name, GIFOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
     DBG_OUTPUT_PORT.printf("Successfully opened GIF; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
     DBG_OUTPUT_PORT.flush();
-    while (gif.playFrame(true, NULL)) {      
-      // if ( (millis() - start_tick) > 8000) { // we'll get bored after about 8 seconds of the same looping gif
-      //  start_tick = 0
-      //  break;
-      // }
-    }
+    while (gif.playFrame(true, NULL)) {}
     gif.close();
   }
 } /* ShowGIF() */
