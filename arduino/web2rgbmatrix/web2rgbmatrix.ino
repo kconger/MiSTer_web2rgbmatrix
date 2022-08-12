@@ -227,7 +227,7 @@ void handleRoot() {
   if(WiFi.status() == WL_CONNECTED){
     wifi_mode = "Client";
   }
-  String image_html = "None";
+  String image_html = "";
   if (FILESYSTEM.exists(gif_filename)){
     image_html = "Client IP: " + client_ip.toString() + "<br>"\
     "Current Image<br>"\
@@ -256,7 +256,7 @@ void handleRoot() {
     <p>\
     <b>Status</b><br>\
     Wifi Mode: " + wifi_mode + "<br>"
-    + "rgbmatrix IP: " + my_ip.toString() + "<br"
+    + "rgbmatrix IP: " + my_ip.toString() + "<br>"
     + image_html + "<br>\
     <p>\
     <b>Wifi Client Settings</b><br>\
