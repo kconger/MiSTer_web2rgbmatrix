@@ -1,2 +1,4 @@
+Arduino: Brightness setting/adjustment
 Arduino/Linux: Speed up transfer time if possible
-Arduino: Add SDCard local GIF cache
+Arduino: SDCard local GIF cache
+Arduino: 'Screensaver' option

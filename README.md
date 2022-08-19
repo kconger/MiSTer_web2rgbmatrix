@@ -38,7 +38,7 @@ Assemble the hardware
 
 Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition.
 
-Copy your GIF files into the web2rgbmatrix/gifs/ directory.  Name the gif you want to use for the core, CoreName.gif.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of GIFs you can use.
+Copy your GIF files into the web2rgbmatrix/gifs/ directory.  Name the gif you want to use for the core, CoreName.gif.  I've included some static core logos that have been properly formatted.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of Animated GIFs you can use as well.
 
 Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
 
