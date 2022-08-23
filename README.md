@@ -16,7 +16,7 @@ Requirements
 -------
 
 Hardware
-- [ESP32 Trinity](https://esp32trinity.com/)
+- [ESP32 Trinity](https://esp32trinity.com/) or other ESP32 with WiFi
 - (2) 64x32 HUB75 compatible RGB matrix or matrices. [ie.](https://www.aliexpress.com/item/3256801502846969.html)
 - 5V Power Supply
 
@@ -38,7 +38,9 @@ Assemble the hardware
 
 Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition.
 
-Copy your GIF files into the web2rgbmatrix/gifs/ directory.  Name the gif you want to use for the core, CoreName.gif.  I've included some static core logos that have been properly formatted.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of Animated GIFs you can use as well.
+Copy your GIF files into a folder that your MiSTer can access.  GIF name must match the core name exactly, ie. CoreName.gif.  There are some static core logos that can be copied into your GIF directory on the MiSTer.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of animated GIFs you can use as well.
+
+Update your 'web2rgbmatrix.conf' to point to your GIF directory.
 
 Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
 
