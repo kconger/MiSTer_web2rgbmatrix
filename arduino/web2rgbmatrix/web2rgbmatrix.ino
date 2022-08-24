@@ -2,6 +2,8 @@
 #include <AnimatedGIF.h>
 #include <ArduinoJson.h>
 #include "FS.h"
+#include "SD.h"
+#include "SPI.h"
 #include <LittleFS.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -28,8 +30,12 @@ char hostname[80] = DEFAULT_HOSTNAME;
 
 #define LED LED_BUILTIN
 
-#define FILESYSTEM LittleFS
-#define FORMAT_LITTLEFS_IF_FAILED true
+#define SD_SCLK 33
+#define SD_MISO 32
+#define SD_MOSI 21
+#define SD_SS 22
+
+SPIClass spi = SPIClass(HSPI);
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -45,6 +51,7 @@ int ping_fail = 0;
 
 const char *secrets_filename = "/secrets.json";
 const char *gif_filename = "/core.gif";
+String sd_filename = "";
 StaticJsonDocument<512> doc;
 File gif_file, upload_file;
 AnimatedGIF gif;
@@ -69,14 +76,41 @@ void setup(void) {
   //Set LED to be an output pin
   pinMode(LED, OUTPUT);
 
-  // Initialize filesystem
+  // Initialize internal filesystem
   DBG_OUTPUT_PORT.println("Loading LITTLEFS");
-  if(!LittleFS.begin(FORMAT_LITTLEFS_IF_FAILED)){
+  if(!LittleFS.begin(true)){
     DBG_OUTPUT_PORT.println("LITTLEFS Mount Failed");
   }
-  FILESYSTEM.remove(gif_filename);
+  LittleFS.remove(gif_filename);
   DBG_OUTPUT_PORT.println("Files in flash:");
-  listDir(FILESYSTEM,"/",1);
+  listDir(LittleFS,"/",1);
+
+  //Initialize SD Card
+  spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
+
+  if (!SD.begin(SD_SS, spi, 80000000)) {
+    DBG_OUTPUT_PORT.println("Card Mount Failed");
+    return;
+  }
+
+  uint8_t cardType = SD.cardType();
+  if (cardType == CARD_NONE) {
+    DBG_OUTPUT_PORT.println("No SD card attached");
+    return;
+  }
+  DBG_OUTPUT_PORT.print("SD Card Type: ");
+  if (cardType == CARD_MMC) {
+    DBG_OUTPUT_PORT.println("MMC");
+  } else if (cardType == CARD_SD) {
+    DBG_OUTPUT_PORT.println("SDSC");
+  } else if (cardType == CARD_SDHC) {
+    DBG_OUTPUT_PORT.println("SDHC");
+  } else {
+    DBG_OUTPUT_PORT.println("UNKNOWN");
+  }
+
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);
 
   // Initialize gif object
   gif.begin(LITTLE_ENDIAN_PIXELS);
@@ -133,6 +167,7 @@ void setup(void) {
 
   server.on("/", handleRoot);
   server.on("/reboot", handleReboot);
+  server.on("/localplay", handleLocalPlay);
   server.on("/play", HTTP_POST, [](){ server.send(200);}, handleFilePlay);
   server.onNotFound(handleNotFound);
   server.begin();
@@ -183,14 +218,15 @@ void loop(void) {
       DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
       dma_display->clearScreen();
       client_ip = {0,0,0,0};
-      FILESYSTEM.remove(gif_filename);
+      LittleFS.remove(gif_filename);
+      sd_filename = "";
     }
   }
 } /* loop() */
 
 bool parseSecrets() {
   // Open file for parsing
-  File secretsFile = FILESYSTEM.open(secrets_filename);
+  File secretsFile = LittleFS.open(secrets_filename);
   if (!secretsFile) {
     DBG_OUTPUT_PORT.println("ERROR: Could not open secrets.json file for reading!");
     return false;
@@ -209,9 +245,6 @@ bool parseSecrets() {
   DBG_OUTPUT_PORT.println("Attempting to find network interface...");
   strlcpy(ssid, doc["ssid"] | DEFAULT_SSID, sizeof(ssid));
   strlcpy(password, doc["password"] | DEFAULT_PASSWORD, sizeof(password));
-  strlcpy(ap, doc["ap"] | DEFAULT_AP, sizeof(ap));
-  strlcpy(ap_password, doc["ap_password"] | DEFAULT_AP_PASSWORD, sizeof(ap_password));
-  strlcpy(hostname, doc["hostname"] | DEFAULT_HOSTNAME, sizeof(hostname));
        
   // Close the secrets.json file
   secretsFile.close();
@@ -228,10 +261,14 @@ void handleRoot() {
     wifi_mode = "Client";
   }
   String image_html = "";
-  if (FILESYSTEM.exists(gif_filename)){
+  if (LittleFS.exists(gif_filename)){
     image_html = "Client IP: " + client_ip.toString() + "<br>"\
     "Current Image<br>"\
     "<img src=\"/core.gif\"><img><br>";
+  } else if (sd_filename != ""){
+    image_html = "Client IP: " + client_ip.toString() + "<br>"\
+    "Current Image<br>"\
+    "<img src=\"" + sd_filename + "\"><img><br>";
   }
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">\
@@ -282,7 +319,7 @@ void handleRoot() {
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
-      File data_file = FILESYSTEM.open(secrets_filename, FILE_WRITE);
+      File data_file = LittleFS.open(secrets_filename, FILE_WRITE);
       if (!data_file) {
         response = "Failed to open config file for writing";
         returnFail(response);
@@ -308,6 +345,37 @@ void handleRoot() {
   DBG_OUTPUT_PORT.println(response);
 } /* handleRoot() */
 
+void handleLocalPlay(){
+  String response;
+  if (server.method() == HTTP_GET) {
+    if (server.arg("file") != "") {
+      String fullpath = "/gifs/" + server.arg("file");
+      const char *requested_filename = fullpath.c_str();
+      if (!SD.exists(requested_filename)) {
+        response = "Requested local file does not exist";
+        server.send(404, F("text/plain"), response);
+        DBG_OUTPUT_PORT.println(response);
+      } else {
+        response = "Requested local file exists";
+        DBG_OUTPUT_PORT.println(response);
+        server.send(200, F("text/plain"), response);
+        LittleFS.remove(gif_filename);
+        sd_filename = fullpath;
+        client_ip = server.client().remoteIP();
+        ShowGIF(requested_filename, true);
+      }
+      
+    } else {
+      response = "Method Not Allowed";
+      server.send(405, F("text/plain"), response);
+    }
+  } else {
+    response = "Method Not Allowed";
+    server.send(405, F("text/plain"), response);
+  }
+  DBG_OUTPUT_PORT.println(response);
+} /* handleLocalPlay() */
+
 void handleFilePlay(){
   // To play a GIF with curl
   // curl -F 'file=@1942.gif'  http://rgbmatrix.local/play
@@ -316,8 +384,8 @@ void handleFilePlay(){
     String filename = String(gif_filename);
     if(!filename.startsWith("/")) filename = "/"+filename;
     DBG_OUTPUT_PORT.print("Upload File Name: "); DBG_OUTPUT_PORT.println(filename);
-    FILESYSTEM.remove(filename);                          // Remove a previous version, otherwise data is appended the file again
-    upload_file = FILESYSTEM.open(filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
+    LittleFS.remove(filename);                          // Remove a previous version, otherwise data is appended the file again
+    upload_file = LittleFS.open(filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
     filename = String();
   } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
     if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize); // Write the received bytes to the file
@@ -327,7 +395,8 @@ void handleFilePlay(){
       client_ip = server.client().remoteIP();
       DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
       server.send(200,"text/plain","SUCCESS");
-      ShowGIF(gif_filename);
+      sd_filename = "";
+      ShowGIF(gif_filename,false);
     } else {
       returnFail("Couldn't create file");
     }
@@ -380,14 +449,14 @@ bool loadFromFlash(String path) {
     data_type = "application/zip";
   }
   
-  if (! FILESYSTEM.exists(path.c_str())) {
-    DBG_OUTPUT_PORT.println("..doesnt exist?");
+  if (!LittleFS.exists(path.c_str())) {
+    DBG_OUTPUT_PORT.println("File doesnt exist");
     return false;
   }
   
-  File data_file = FILESYSTEM.open(path.c_str());
-  if (! data_file) {
-    DBG_OUTPUT_PORT.println("..couldn't open?");
+  File data_file = LittleFS.open(path.c_str());
+  if (!data_file) {
+    DBG_OUTPUT_PORT.println("Couldn't open file");
     return false;
   }
 
@@ -403,8 +472,65 @@ bool loadFromFlash(String path) {
   return true;
 } /* loadFromFlash() */
 
+bool loadFromSD(String path) {
+  String data_type = "text/plain";
+  if (path.endsWith("/")) {
+    path += "index.html";
+  }
+  if (path.endsWith(".src")) {
+    path = path.substring(0, path.lastIndexOf("."));
+  } else if (path.endsWith(".htm")) {
+    data_type = "text/html";
+  } else if (path.endsWith(".html")) {
+    data_type = "text/html";
+  } else if (path.endsWith(".css")) {
+    data_type = "text/css";
+  } else if (path.endsWith(".js")) {
+    data_type = "application/javascript";
+  } else if (path.endsWith(".png")) {
+    data_type = "image/png";
+  } else if (path.endsWith(".gif")) {
+    data_type = "image/gif";
+  } else if (path.endsWith(".jpg")) {
+    data_type = "image/jpeg";
+  } else if (path.endsWith(".ico")) {
+    data_type = "image/x-icon";
+  } else if (path.endsWith(".xml")) {
+    data_type = "text/xml";
+  } else if (path.endsWith(".pdf")) {
+    data_type = "application/pdf";
+  } else if (path.endsWith(".zip")) {
+    data_type = "application/zip";
+  }
+  
+  if (!SD.exists(path.c_str())) {
+    DBG_OUTPUT_PORT.println("File doesnt exist");
+    return false;
+  }
+  
+  File data_file = SD.open(path.c_str());
+  if (!data_file) {
+    DBG_OUTPUT_PORT.println("Couldn't open file");
+    return false;
+  }
+
+  if (server.hasArg("download")) {
+    data_type = "application/octet-stream";
+  }
+
+  if (server.streamFile(data_file, data_type) != data_file.size()) {
+    DBG_OUTPUT_PORT.println("Sent less data than expected!");
+  }
+  DBG_OUTPUT_PORT.println("Sent file");
+  data_file.close();
+  return true;
+} /* loadFromSD() */
+
 void handleNotFound() {
   if (loadFromFlash(server.uri())) {
+    return;
+  }
+  if (loadFromSD(server.uri())) {
     return;
   }
   String message = "File Not Found\n\n";
@@ -460,30 +586,33 @@ void displaySetup() {
     panels_in_X_chain    // Chain length
   );
 
-  // If you are using a 64x64 matrix you need to pass a value for the E pin
-  // The trinity connects GPIO 18 to E.
-  // This can be commented out for any smaller displays (but should work fine with it)
-  //mxconfig.gpio.e = 18;
+  //Pins for a ESP32-Trinity
+  mxconfig.gpio.e = 18;
 
-  //Pins for a Adafruit Feather ESP32-S2
-  //swap green and blue for my specific rgb panels
-  mxconfig.gpio.b1 = 39;
+  mxconfig.gpio.b1 = 26;
   mxconfig.gpio.b2 = 12;
 
-  mxconfig.gpio.g1 = 10;
+  mxconfig.gpio.g1 = 27;
   mxconfig.gpio.g2 = 13;
 
-  mxconfig.gpio.r1 = 38;
-  mxconfig.gpio.r2 = 11;
+  //Pins for a Adafruit Feather ESP32-S2
+  //mxconfig.gpio.b1 = 39;
+  //mxconfig.gpio.b2 = 12;
 
-  mxconfig.gpio.a = 18;
-  mxconfig.gpio.b = 17;
-  mxconfig.gpio.c = 16;
-  mxconfig.gpio.d = 15;
+  //mxconfig.gpio.g1 = 10;
+  //mxconfig.gpio.g2 = 13;
 
-  mxconfig.gpio.clk = 9;
-  mxconfig.gpio.lat = 5;
-  mxconfig.gpio.oe = 6;
+  //mxconfig.gpio.r1 = 38;
+  //mxconfig.gpio.r2 = 11;
+
+  //mxconfig.gpio.a = 18;
+  //mxconfig.gpio.b = 17;
+  //mxconfig.gpio.c = 16;
+  //mxconfig.gpio.d = 15;
+
+  //mxconfig.gpio.clk = 9;
+  //mxconfig.gpio.lat = 5;
+  //mxconfig.gpio.oe = 6;
 
   // May or may not be needed depending on your matrix
   // Example of what needing it looks like:
@@ -496,7 +625,7 @@ void displaySetup() {
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   dma_display->begin();
-  dma_display->setBrightness8(128); //0-255
+  dma_display->setBrightness8(255); //0-255
   dma_display->clearScreen();
 } /* displaySetup() */
 
@@ -586,7 +715,18 @@ void GIFDraw(GIFDRAW *pDraw) {
 void * GIFOpenFile(const char *fname, int32_t *pSize) {
   DBG_OUTPUT_PORT.print("Playing gif: ");
   DBG_OUTPUT_PORT.println(fname);
-  gif_file = FILESYSTEM.open(fname);
+  gif_file = LittleFS.open(fname);
+  if (gif_file) {
+    *pSize = gif_file.size();
+    return (void *)&gif_file;
+  }
+  return NULL;
+} /* GIFOpenFile() */
+
+void * GIFSDOpenFile(const char *fname, int32_t *pSize) {
+  DBG_OUTPUT_PORT.print("Playing gif from SD: ");
+  DBG_OUTPUT_PORT.println(fname);
+  gif_file = SD.open(fname);
   if (gif_file) {
     *pSize = gif_file.size();
     return (void *)&gif_file;
@@ -624,11 +764,20 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
   return pFile->iPos;
 } /* GIFSeekFile() */
 
-void ShowGIF(const char *name) {
-  if (gif.open(name, GIFOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
-    DBG_OUTPUT_PORT.printf("Successfully opened GIF; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
-    DBG_OUTPUT_PORT.flush();
-    while (gif.playFrame(true, NULL)) {}
-    gif.close();
+void ShowGIF(const char *name, bool sd) {
+  if (sd){
+    if (gif.open(name, GIFSDOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
+      DBG_OUTPUT_PORT.printf("Successfully opened GIF from SD; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
+      DBG_OUTPUT_PORT.flush();
+      while (gif.playFrame(true, NULL)) {}
+      gif.close();
+    }    
+  } else {
+    if (gif.open(name, GIFOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
+      DBG_OUTPUT_PORT.printf("Successfully opened GIF; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
+      DBG_OUTPUT_PORT.flush();
+      while (gif.playFrame(true, NULL)) {}
+      gif.close();
+    }
   }
 } /* ShowGIF() */

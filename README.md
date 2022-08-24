@@ -10,6 +10,7 @@ Current features
 - Wifi AP or Infrastructure Mode
 - Web interface to configure wifi and to see current status of Wifi mode, playing GIF and connected client IP
 - Displays network config at boot
+- SD Card GIF storage
 - Serial debug output
 
 Requirements
@@ -18,6 +19,8 @@ Requirements
 Hardware
 - [ESP32 Trinity](https://esp32trinity.com/) or other ESP32 with WiFi
 - (2) 64x32 HUB75 compatible RGB matrix or matrices. [ie.](https://www.aliexpress.com/item/3256801502846969.html)
+- SD Card module
+- SD Card
 - 5V Power Supply
 
 Software

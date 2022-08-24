@@ -17,12 +17,18 @@ dbug() {
 
 # Send Core GIF image over the web
 senddata() {
-  if [ -r ${GIF_PATH}/${1}.gif ]; then                          # proceed if file exists and is readable (-r)
-    curl -F file=@${GIF_PATH}/${1}.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
-  else                                                                         # CORENAME.gif file not found
-    echo "File ${GIF_PATH}/${1}.gif not found!"
-    dbug "File ${GIF_PATH}/${1}.gif not found!"
-    curl -F file=@${GIF_PATH}/MENU.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
+  if [ "${SD_INSTALLED}" = "true" ]; then
+    dbug "Requesting matrix SD Card File"
+    curl http://${HOSTNAME}/localplay?file=${1}.gif
+  else
+    dbug "Trying to send file to matrix"
+    if [ -r ${GIF_PATH}/${1}.gif ]; then                          # proceed if file exists and is readable (-r)
+      curl -F file=@${GIF_PATH}/${1}.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
+    else                                                                         # CORENAME.gif file not found
+      echo "File ${GIF_PATH}/${1}.gif not found!"
+      dbug "File ${GIF_PATH}/${1}.gif not found!"
+      curl -F file=@${GIF_PATH}/MENU.gif http://${HOSTNAME}/play  # transfer CORENAME.gif
+    fi
   fi     
 }
 
