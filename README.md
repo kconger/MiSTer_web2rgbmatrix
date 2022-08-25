@@ -6,7 +6,7 @@
 Current features
 -------
 - Display active MiSTer Core logo
-- Store GIFs on an SD Card or on the MiSTer, storage 
+- Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Turns off the display if requesting client is off for 1 minute
 - Wifi AP or Infrastructure Mode
 - Web interface to configure wifi and to see the current status of Wifi mode, currently loaded GIF, and connected client IP
