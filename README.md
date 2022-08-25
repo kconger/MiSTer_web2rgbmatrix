@@ -10,7 +10,7 @@ Current features
 - Turns off the display if requesting client is off for 1 minute
 - Wifi AP or Infrastructure Mode
 - Web interface to configure wifi and to see the current status of Wifi mode, currently loaded GIF, and connected client IP
-- Displays network config at boot
+- Displays network config at boot for 1 minute
 - Serial debug output
 
 Requirements
@@ -57,4 +57,5 @@ If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP
 Credits
 -------
 Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) projects.
+
 Linux/MiSTer service code from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) with minor modifications.

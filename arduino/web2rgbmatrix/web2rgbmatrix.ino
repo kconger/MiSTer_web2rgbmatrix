@@ -28,8 +28,8 @@ char hostname[80] = DEFAULT_HOSTNAME;
 
 #define DBG_OUTPUT_PORT Serial
 
-#define LED LED_BUILTIN
-
+//SD Card reader pins
+//ESP32-Trinity Pins, may need to change for other boards
 #define SD_SCLK 33
 #define SD_MISO 32
 #define SD_MOSI 21
@@ -73,9 +73,6 @@ void setup(void) {
   DBG_OUTPUT_PORT.setDebugOutput(true);
   delay(1000);
 
-  //Set LED to be an output pin
-  pinMode(LED, OUTPUT);
-
   // Initialize internal filesystem
   DBG_OUTPUT_PORT.println("Loading LITTLEFS");
   if(!LittleFS.begin(true)){
@@ -87,12 +84,10 @@ void setup(void) {
 
   //Initialize SD Card
   spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
-
   if (!SD.begin(SD_SS, spi, 80000000)) {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
     return;
   }
-
   uint8_t cardType = SD.cardType();
   if (cardType == CARD_NONE) {
     DBG_OUTPUT_PORT.println("No SD card attached");
@@ -108,7 +103,6 @@ void setup(void) {
   } else {
     DBG_OUTPUT_PORT.println("UNKNOWN");
   }
-
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
   Serial.printf("SD Card Size: %lluMB\n", cardSize);
 
@@ -120,7 +114,6 @@ void setup(void) {
 
   // Initialize Wifi
   parseSecrets();
-
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   DBG_OUTPUT_PORT.print("Connecting to ");
@@ -173,7 +166,6 @@ void setup(void) {
   server.begin();
   
   start_tick = millis();
-  digitalWrite(LED, HIGH);
   DBG_OUTPUT_PORT.println("Startup Complete");
 } /* setup() */
 
