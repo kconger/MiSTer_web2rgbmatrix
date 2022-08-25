@@ -30,9 +30,11 @@ Software
 Install
 -------
 **ESP32 Setup**
+
 Flash the Arduino sketch to the board using Arduino IDE.
 
 **MiSTer Setup**
+
 Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition.
 
 Copy your GIF files into a "gifs" folder at the root of your matrix SD card.  If not using an SD card in your matrix, copy them somewhere your MiSTer can access.  GIF file names must match the core name exactly, ie. Minimig.gif.  Included are some static core logos.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of animated GIFs you can use as well.
@@ -46,6 +48,7 @@ Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
 ```
 
 **Configure rgbmatrix**
+
 Initially, the rgbmatrix starts up in AP mode with an SSID of 'rgbmatrix' and the password 'password'.  Once connected to its SSID go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
  
 If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the 'HOSTNAME' variable in the web2rgbmatrix.conf file.
