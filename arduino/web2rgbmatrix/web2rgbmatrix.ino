@@ -1,15 +1,15 @@
-#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
-#include <AnimatedGIF.h>
-#include <ArduinoJson.h>
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
+#include <AnimatedGIF.h>
+#include <ArduinoJson.h>
+#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#include <ESP32Ping.h>
+#include <ESPmDNS.h>
 #include <LittleFS.h>
+#include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include <ESP32Ping.h>
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -26,10 +26,16 @@ char ap_password[80] = DEFAULT_PASSWORD;
 #define DEFAULT_HOSTNAME "rgbmatrix"
 char hostname[80] = DEFAULT_HOSTNAME;
 
+#define DEFAULT_BRIGHTNESS 255
+const uint8_t brightness = DEFAULT_BRIGHTNESS;
+
+#define DEFAULT_PING_FAIL_COUNT 6 // Set to '0' to disable client check
+int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
+
 #define DBG_OUTPUT_PORT Serial
 
-//SD Card reader pins
-//ESP32-Trinity Pins, may need to change for other boards
+// SD Card reader pins
+// ESP32-Trinity Pins
 #define SD_SCLK 33
 #define SD_MISO 32
 #define SD_MOSI 21
@@ -37,10 +43,18 @@ char hostname[80] = DEFAULT_HOSTNAME;
 
 SPIClass spi = SPIClass(HSPI);
 
+// Matrix Config
+// See the "displaySetup" method for more display config options
 MatrixPanel_I2S_DMA *dma_display = nullptr;
+const int panelResX = 64;        // Number of pixels wide of each INDIVIDUAL panel module.
+const int panelResY = 32;        // Number of pixels tall of each INDIVIDUAL panel module.
+const int panels_in_X_chain = 2; // Total number of panels in X
+const int panels_in_Y_chain = 1; // Total number of panels in Y
+const int totalWidth  = panelResX * panels_in_X_chain;
+const int totalHeight = panelResY * panels_in_Y_chain;
+int16_t xPos = 0, yPos = 0; // Top-left pixel coord of GIF in matrix space
 
 WebServer server(80);
-
 IPAddress my_ip;
 IPAddress no_ip(0,0,0,0);
 IPAddress client_ip(0,0,0,0);
@@ -56,18 +70,6 @@ StaticJsonDocument<512> doc;
 File gif_file, upload_file;
 AnimatedGIF gif;
 
-// -------------------------------------
-// -------   Matrix Config   ------
-// -------------------------------------
-// See the "displaySetup" method for more display config options
-const int panelResX = 64;        // Number of pixels wide of each INDIVIDUAL panel module.
-const int panelResY = 32;        // Number of pixels tall of each INDIVIDUAL panel module.
-const int panels_in_X_chain = 2; // Total number of panels in X
-const int panels_in_Y_chain = 1; // Total number of panels in Y
-const int totalWidth  = panelResX * panels_in_X_chain;
-const int totalHeight = panelResY * panels_in_Y_chain;
-int16_t xPos = 0, yPos = 0; // Top-left pixel coord of GIF in matrix space
-
 void setup(void) {    
   DBG_OUTPUT_PORT.begin(115200);
   DBG_OUTPUT_PORT.setDebugOutput(true);
@@ -82,7 +84,7 @@ void setup(void) {
   DBG_OUTPUT_PORT.println("Files in flash:");
   listDir(LittleFS,"/",1);
 
-  //Initialize SD Card
+  // Initialize SD Card
   spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
   if (!SD.begin(SD_SS, spi, 80000000)) {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
@@ -172,46 +174,48 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
   delay(2);
-  //Clear initial display
+  // Clear initial display
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
     DBG_OUTPUT_PORT.println("Clearing config screen");
     dma_display->clearScreen();
   }
-  //Check if client who requested core image has gone away, if so clear screen
+  // Check if client who requested core image has gone away, if so clear screen
   if(client_ip != no_ip){
-    if (ping_fail == 0){
-      if (millis() - last_seen >= 30*1000UL){
-        last_seen = millis();
-        bool success = Ping.ping(client_ip, 1);
-        if(!success){
-          DBG_OUTPUT_PORT.println("Initial Ping failed");
-          ping_fail = ping_fail + 1;
-        } else {
-          DBG_OUTPUT_PORT.println("Ping succesful.");
-          ping_fail = 0;
+    if (ping_fail_count != 0){
+      if (ping_fail == 0){
+        if (millis() - last_seen >= 30*1000UL){
+          last_seen = millis();
+          bool success = Ping.ping(client_ip, 1);
+          if(!success){
+            DBG_OUTPUT_PORT.println("Initial Ping failed");
+            ping_fail = ping_fail + 1;
+          } else {
+            DBG_OUTPUT_PORT.println("Ping succesful.");
+            ping_fail = 0;
+          }
         }
-      }
-    } else if (ping_fail >= 1 && ping_fail < 4){ // Increase ping frequecy after first failure
-      if (millis() - last_seen >= 10*1000UL){
-        last_seen = millis();
-        bool success = Ping.ping(client_ip, 1);
-        if(!success){
-          DBG_OUTPUT_PORT.print("Ping fail count: ");
-          ping_fail = ping_fail + 1;
-          DBG_OUTPUT_PORT.println(ping_fail);
-        } else {
-          DBG_OUTPUT_PORT.println("Ping succesful.");
-          ping_fail = 0;
+      } else if (ping_fail >= 1 && ping_fail < ping_fail_count){ // Increase ping frequecy after first failure
+        if (millis() - last_seen >= 10*1000UL){
+          last_seen = millis();
+          bool success = Ping.ping(client_ip, 1);
+          if(!success){
+            DBG_OUTPUT_PORT.print("Ping fail count: ");
+            ping_fail = ping_fail + 1;
+            DBG_OUTPUT_PORT.println(ping_fail);
+          } else {
+            DBG_OUTPUT_PORT.println("Ping succesful.");
+            ping_fail = 0;
+          }
         }
+      } else if (ping_fail >= ping_fail_count){
+        // Client gone clear display
+        DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
+        dma_display->clearScreen();
+        client_ip = {0,0,0,0};
+        LittleFS.remove(gif_filename);
+        sd_filename = "";
       }
-    } else if (ping_fail >= 4){
-      //Client gone clear display
-      DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
-      dma_display->clearScreen();
-      client_ip = {0,0,0,0};
-      LittleFS.remove(gif_filename);
-      sd_filename = "";
     }
   }
 } /* loop() */
@@ -307,7 +311,7 @@ void handleRoot() {
     if (server.arg("ssid") != "" && server.arg("password") != "") {
       server.arg("ssid").toCharArray(ssid, sizeof(ssid));
       server.arg("password").toCharArray(password, sizeof(password));
-      //Write secrets.json
+      // Write secrets.json
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
@@ -617,7 +621,7 @@ void displaySetup() {
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   dma_display->begin();
-  dma_display->setBrightness8(255); //0-255
+  dma_display->setBrightness8(brightness); //0-255
   dma_display->clearScreen();
 } /* displaySetup() */
 
