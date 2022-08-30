@@ -11,6 +11,7 @@ Current features
 - Wifi AP or Infrastructure Mode
 - Web interface to configure wifi and to see the current status of Wifi mode, currently loaded GIF, and connected client IP
 - Displays network config at boot for 1 minute
+- OTA updates
 - Serial debug output
 
 Requirements
