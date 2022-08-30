@@ -60,14 +60,16 @@ IPAddress my_ip;
 IPAddress no_ip(0,0,0,0);
 IPAddress client_ip(0,0,0,0);
 
-/* Style */
+// Style for HTML pages
 String style =
 "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
 "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
 "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
 "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
 "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+".btn{background:#3498db;color:#fff;cursor:pointer}.otabtn{background:#218838;color:#fff;cursor:pointer}"
+".rebootbtn{background:#c82333;color:#fff;cursor:pointer}input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
+"</style>";
 
 bool config_display_on = true;
 unsigned long last_seen, start_tick;
@@ -317,11 +319,11 @@ void handleRoot() {
       <input type=\"checkbox\"id=\"showpass\" onclick=\"myFunction()\">\
       Show Password</label>\
       </div>\
-      <input type=\"submit\" value=\"Save\"><br>\
+      <input type=\"submit\" class=btn value=\"Save\"><br>\
     </form>\
     <form>\
-      <input type=\"button\" onclick=\"location.href='/ota';\" value=\"OTA Update\" />\
-      <input type=\"button\" onclick=\"location.href='/reboot';\" value=\"Reboot\" />\
+      <input type=\"button\" class=otabtn onclick=\"location.href='/ota';\" value=\"OTA Update\" />\
+      <input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />\
     </form>\
   </body>\
   </html>";
