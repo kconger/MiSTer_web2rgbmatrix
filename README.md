@@ -1,7 +1,7 @@
 # web2rgbmatrix
 [MiSTer_web2rgbmatrix](https://github.com/kconger/MiSTer_web2rgbmatrix) is an hardware and software addon for the [MiSTer FPGA](https://github.com/MiSTer-devel) that displays an animated or static GIF logo of the current running [MiSTer FPGA](https://github.com/MiSTer-devel) core on an RGB LED Matrix.
 
-![matrix_on_](docs/images/matrix-on.jpg "matrix_on")
+![matrix_on](docs/images/matrix-on.jpg "matrix_on")
 
 Current features
 -------
@@ -9,9 +9,9 @@ Current features
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Turns off the display if requesting client is off for 1 minute
 - Wifi AP or Infrastructure Mode
-- Web interface to configure wifi and to see the current status of Wifi mode, currently loaded GIF, and connected client IP
+- Web interface to configure Wifi and to see the current status of Wifi mode, loaded GIF, and connected client IP
+- Web OTA updates
 - Displays network config at boot for 1 minute
-- OTA updates
 - Serial debug output
 
 Requirements
@@ -30,6 +30,11 @@ Software
 
 Install
 -------
+**Assemble your matrix**
+
+Wiring should look like the following.
+![matrix_rear_open](docs/images/matrix-rear-open.jpg "matrix_rear_open")
+
 **ESP32 Setup**
 
 Flash the Arduino sketch to the board using Arduino IDE.
