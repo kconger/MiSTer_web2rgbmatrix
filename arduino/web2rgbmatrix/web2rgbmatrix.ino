@@ -7,6 +7,7 @@
 #include <ESP32Ping.h>
 #include <ESPmDNS.h>
 #include <LittleFS.h>
+#include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -59,6 +60,15 @@ IPAddress my_ip;
 IPAddress no_ip(0,0,0,0);
 IPAddress client_ip(0,0,0,0);
 
+/* Style */
+String style =
+"<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+"input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+"#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+"#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+"form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
+".btn{background:#3498db;color:#fff;cursor:pointer}</style>";
+
 bool config_display_on = true;
 unsigned long last_seen, start_tick;
 int ping_fail = 0;
@@ -106,7 +116,7 @@ void setup(void) {
     DBG_OUTPUT_PORT.println("UNKNOWN");
   }
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-  Serial.printf("SD Card Size: %lluMB\n", cardSize);
+  DBG_OUTPUT_PORT.printf("SD Card Size: %lluMB\n", cardSize);
 
   // Initialize gif object
   gif.begin(LITTLE_ENDIAN_PIXELS);
@@ -161,6 +171,12 @@ void setup(void) {
   }
 
   server.on("/", handleRoot);
+  server.on("/ota", handleOTA);
+  server.on("/update", HTTP_POST, []() {
+    server.sendHeader("Connection", "close");
+    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    ESP.restart();
+  }, handleUpdate);
   server.on("/reboot", handleReboot);
   server.on("/localplay", handleLocalPlay);
   server.on("/play", HTTP_POST, [](){ server.send(200);}, handleFilePlay);
@@ -280,11 +296,10 @@ void handleRoot() {
         x.type = \"password\"\;\
       }\
     }\
-    </script>\
-    <style>\
-    </style>\
+    </script>" + style + "\
     </head>\
     <body>\
+    <form action=\"/\">\
     <h1>web2rgbmatrix</h1><br>\
     <p>\
     <b>Status</b><br>\
@@ -293,16 +308,20 @@ void handleRoot() {
     + image_html + "<br>\
     <p>\
     <b>Wifi Client Settings</b><br>\
-    <form action=\"/\">\
       SSID<br>\
       <input type=\"text\" name=\"ssid\" value=\"" + String(ssid) + "\"><br>\
       Password<br>\
       <input type=\"password\" name=\"password\" id=\"idPassword\" value=\"" + String(password) + "\"><br>\
-      <input type=\"checkbox\" onclick=\"myFunction()\">Show Password<br>\
-      <input type=\"submit\" value=\"Update\"><br>\
+      <div>\
+      <label for=\"showpass\" class=\"chkboxlabel\">\
+      <input type=\"checkbox\"id=\"showpass\" onclick=\"myFunction()\">\
+      Show Password</label>\
+      </div>\
+      <input type=\"submit\" value=\"Save\"><br>\
     </form>\
-    <form action=\"/reboot\">\
-      <input type=\"submit\" value=\"Reboot\" />\
+    <form>\
+      <input type=\"button\" onclick=\"location.href='/ota';\" value=\"OTA Update\" />\
+      <input type=\"button\" onclick=\"location.href='/reboot';\" value=\"Reboot\" />\
     </form>\
   </body>\
   </html>";
@@ -326,10 +345,13 @@ void handleRoot() {
         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\ 
         <head>\
           <title>Config Saved</title>\   
-          <meta http-equiv=\"refresh\" content=\"3\;URL=\'/\'\" />\
-        </head>\
+          <meta http-equiv=\"refresh\" content=\"3\;URL=\'/\'\" />"
+          + style +
+        "</head>\
         <body>\
+        <form>\
           <p>Config Saved</p>\
+        </form>\
         </body>\
         </html>";
     }
@@ -399,15 +421,102 @@ void handleFilePlay(){
   }
 } /* handleFilePlay() */
 
+void handleOTA(){
+  String response;
+  if (server.method() == HTTP_GET) {
+    String html = 
+      "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+      "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+      "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
+      "<label id='file-input' for='file'>   Choose file...</label>"
+      "<input type='submit' class=btn value='Update'>"
+      "<br><br>"
+      "<div id='prg'></div>"
+      "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+      "<script>"
+      "function sub(obj){"
+      "var fileName = obj.value.split('\\\\');"
+      "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
+      "};"
+      "$('form').submit(function(e){"
+      "e.preventDefault();"
+      "var form = $('#upload_form')[0];"
+      "var data = new FormData(form);"
+      "$.ajax({"
+      "url: '/update',"
+      "type: 'POST',"
+      "data: data,"
+      "contentType: false,"
+      "processData:false,"
+      "xhr: function() {"
+      "var xhr = new window.XMLHttpRequest();"
+      "xhr.upload.addEventListener('progress', function(evt) {"
+      "if (evt.lengthComputable) {"
+      "var per = evt.loaded / evt.total;"
+      "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+      "$('#bar').css('width',Math.round(per*100) + '%');"
+      "}"
+      "}, false);"
+      "return xhr;"
+      "},"
+      "success:function(d, s) {"
+      "console.log('success!') "
+      "},"
+      "error: function (a, b, c) {"
+      "}"
+      "});"
+      "});"
+      "</script>" + style;
+    server.send(200, "text/html", html);
+  } else {
+    response = "Method Not Allowed";
+    server.send(405, F("text/plain"), response);
+  }
+  DBG_OUTPUT_PORT.println(response);
+} /* handleOTA() */
+
+void handleUpdate(){
+  HTTPUpload& upload = server.upload();
+  if (upload.status == UPLOAD_FILE_START) {
+    dma_display->clearScreen();
+    dma_display->setCursor(0, 0);
+    dma_display->println("OTA Update Started");
+    DBG_OUTPUT_PORT.printf("Update: %s\n", upload.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+      Update.printError(DBG_OUTPUT_PORT);
+    }
+  } else if (upload.status == UPLOAD_FILE_WRITE) {
+    /* flashing firmware to ESP*/
+    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+      Update.printError(DBG_OUTPUT_PORT);
+      dma_display->setCursor(0, 0);
+      dma_display->println("OTA Update Error");
+    }
+  } else if (upload.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { //true to set the size to the current progress
+      dma_display->setCursor(0, 0);
+      dma_display->println("OTA Update Success");
+      DBG_OUTPUT_PORT.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+    } else {
+      Update.printError(DBG_OUTPUT_PORT);
+      dma_display->setCursor(0, 0);
+      dma_display->println("OTA Update Error");
+    }
+  }
+} /* handleUpdate() */
+
 void handleReboot() {
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">\ 
     <head>\
       <title>Rebooting...</title>\   
-      <meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />\
-    </head>\
+      <meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />"
+    + style +
+    "</head>\
     <body>\
+    <form>\
       <p>Rebooting...</p>\
+    </form>\
     </body>\
     </html>";
   server.send(200, "text/html", html);
