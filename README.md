@@ -53,6 +53,8 @@ Initially, the rgbmatrix starts up in AP mode with an SSID of "rgbmatrix" and th
 
 If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the "HOSTNAME" variable in the web2rgbmatrix.conf file on the MiSTer.
 
+![matrix_webui](docs/images/matrix-webui.jpg "matrix_webui")
+
 **MiSTer Setup**
 
 Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition. ie. /media/fat/web2rgbmatrix
