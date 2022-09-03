@@ -8,9 +8,11 @@ Current features
 - Display active MiSTer Core logo, or MENU.gif if not avilable.
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Turns off the display if requesting client is off for 1 minute
-- Displays network config at boot for 1 minute
-- Web interface to configure Wifi and to see the current status of Wifi, loaded GIF, and connected client IP
-- Web OTA updates
+- Displays network and SD card status at boot for 1 minute
+- Web: Status display of Wifi, SD Card, loaded GIF, and connected client IP
+- Web: Wifi Configuration 
+- Web: GIF uploads to SD Card
+- Web: OTA updates
 - Serial debug output
 
 Requirements
