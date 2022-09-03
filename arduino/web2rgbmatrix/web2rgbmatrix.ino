@@ -191,6 +191,7 @@ void setup(void) {
   server.on("/reboot", handleReboot);
   server.on("/localplay", handleLocalPlay);
   server.on("/play", HTTP_POST, [](){ server.send(200);}, handleFilePlay);
+  server.on("/clear", handleClear);
   server.onNotFound(handleNotFound);
   server.begin();
   
@@ -293,10 +294,10 @@ void handleRoot() {
   }
   String image_html = "";
   if (LittleFS.exists(gif_filename)){
-    image_html = "Client IP: " + client_ip.toString() + "<br>" +
+    image_html = "Client IP: " + client_ip.toString() + "<br><br>" +
     "Current Image<br><img src=\"/core.gif\"><img><br>";
   } else if (sd_filename != ""){
-    image_html = "Client IP: " + client_ip.toString() + "<br>" +
+    image_html = "Client IP: " + client_ip.toString() + "<br><br>" +
     "Current Image<br><img src=\"" + sd_filename + "\"><img><br>";
   }
   String html =
@@ -339,6 +340,7 @@ void handleRoot() {
     "<input type=\"submit\" class=btn value=\"Save\"><br>"
     "</form>"
     "<form>"
+    "<input type=\"button\" class=btn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
     + gif_button +
     "<input type=\"button\" class=otabtn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
     "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
@@ -377,68 +379,6 @@ void handleRoot() {
     server.send(405, F("text/plain"), "Method Not Allowed");
   }
 } /* handleRoot() */
-
-void handleLocalPlay(){
-  String response;
-  if (server.method() == HTTP_GET) {
-    if (card_mounted){
-      if (server.arg("file") != "") {
-        String fullpath = "/gifs/" + server.arg("file");
-        const char *requested_filename = fullpath.c_str();
-        if (!SD.exists(requested_filename)) {
-          response = "Requested local file does not exist";
-          server.send(404, F("text/plain"), response);
-          DBG_OUTPUT_PORT.println(response);
-        } else {
-          response = "Requested local file exists";
-          DBG_OUTPUT_PORT.println(response);
-          server.send(200, F("text/plain"), response);
-          LittleFS.remove(gif_filename);
-          sd_filename = fullpath;
-          client_ip = server.client().remoteIP();
-          ShowGIF(requested_filename, true);
-        } 
-      } else {
-        response = "Method Not Allowed";
-        server.send(405, F("text/plain"), response);
-      }
-    } else {
-      response = "SD Card Not Mounted";
-      returnFail(response);
-    }
-  } else {
-    response = "Method Not Allowed";
-    server.send(405, F("text/plain"), response);
-  }
-  DBG_OUTPUT_PORT.println(response);
-} /* handleLocalPlay() */
-
-void handleFilePlay(){
-  // To play a GIF with curl
-  // curl -F 'file=@1942.gif'  http://rgbmatrix.local/play
-  HTTPUpload& uploadfile = server.upload();
-  if(uploadfile.status == UPLOAD_FILE_START) {
-    String filename = String(gif_filename);
-    if(!filename.startsWith("/")) filename = "/" + filename;
-    DBG_OUTPUT_PORT.print("Upload File Name: "); DBG_OUTPUT_PORT.println(filename);
-    LittleFS.remove(filename);                          // Remove a previous version, otherwise data is appended the file again
-    upload_file = LittleFS.open(filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
-    filename = String();
-  } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
-    if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize); // Write the received bytes to the file
-  } else if (uploadfile.status == UPLOAD_FILE_END) {
-    if(upload_file) {                                    
-      upload_file.close();
-      client_ip = server.client().remoteIP();
-      DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
-      server.send(200, F("text/plain"), "SUCCESS");
-      sd_filename = "";
-      ShowGIF(gif_filename,false);
-    } else {
-      returnFail("Couldn't create file");
-    }
-  }
-} /* handleFilePlay() */
 
 void handleOTA(){
   if (server.method() == HTTP_GET) {
@@ -637,6 +577,90 @@ void handleReboot() {
   server.send(200, F("text/html"), html);
   ESP.restart();
 } /* handleReboot() */
+
+void handleLocalPlay(){
+  // To play a GIF from SD card with curl
+  // curl http://rgbmatrix.local/localplay?file=MENU.gif
+  String response;
+  if (server.method() == HTTP_GET) {
+    if (card_mounted){
+      if (server.arg("file") != "") {
+        String fullpath = "/gifs/" + server.arg("file");
+        const char *requested_filename = fullpath.c_str();
+        if (!SD.exists(requested_filename)) {
+          response = "Requested local file does not exist";
+          server.send(404, F("text/plain"), response);
+          DBG_OUTPUT_PORT.println(response);
+        } else {
+          response = "Requested local file exists";
+          DBG_OUTPUT_PORT.println(response);
+          server.send(200, F("text/plain"), response);
+          LittleFS.remove(gif_filename);
+          sd_filename = fullpath;
+          client_ip = server.client().remoteIP();
+          ShowGIF(requested_filename, true);
+        } 
+      } else {
+        response = "Method Not Allowed";
+        server.send(405, F("text/plain"), response);
+      }
+    } else {
+      response = "SD Card Not Mounted";
+      returnFail(response);
+    }
+  } else {
+    response = "Method Not Allowed";
+    server.send(405, F("text/plain"), response);
+  }
+  DBG_OUTPUT_PORT.println(response);
+} /* handleLocalPlay() */
+
+void handleFilePlay(){
+  // To play a GIF with curl
+  // curl -F 'file=@1942.gif'  http://rgbmatrix.local/play
+  HTTPUpload& uploadfile = server.upload();
+  if(uploadfile.status == UPLOAD_FILE_START) {
+    String filename = String(gif_filename);
+    if(!filename.startsWith("/")) filename = "/" + filename;
+    DBG_OUTPUT_PORT.print("Upload File Name: "); DBG_OUTPUT_PORT.println(filename);
+    LittleFS.remove(gif_filename);                          // Remove a previous version, otherwise data is appended the file again
+    upload_file = LittleFS.open(gif_filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
+  } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
+    if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize); // Write the received bytes to the file
+  } else if (uploadfile.status == UPLOAD_FILE_END) {
+    if(upload_file) {                                    
+      upload_file.close();
+      client_ip = server.client().remoteIP();
+      DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
+      server.send(200, F("text/plain"), "SUCCESS");
+      sd_filename = "";
+      ShowGIF(gif_filename,false);
+    } else {
+      returnFail("Couldn't create file");
+    }
+  }
+} /* handleFilePlay() */
+
+void handleClear(){
+  dma_display->clearScreen();
+  sd_filename = "";
+  config_display_on = false;
+  LittleFS.remove(gif_filename);
+  String html =
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+    "<head>"
+    "<title>Display Cleared</title>"
+    "<meta http-equiv=\"refresh\" content=\"3\;URL=\'/\'\" />"
+    + style +
+    "</head>"
+    "<body>"
+    "<form>"
+    "<p>Display Cleared</p>"
+    "</form>"
+    "</body>"
+    "</html>";
+  server.send(200, F("text/html"), html);
+} /* handleClear() */
 
 bool loadFromSD(String path) {
   if (card_mounted){
