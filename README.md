@@ -40,16 +40,16 @@ GIFs must be 128x32px and the file names must match the core name exactly, ie. M
 
 **Assembly**
 
-Wiring should look like the following and the enclosure is up to you.  I used some 1x4" red oak, 330x90x3mm [matte diffusing acrylic](https://www.tapplastics.com/product/plastics/cut_to_size_plastic/black_led_sheet/668) and some 3D printed parts I designed..
+Wiring should look like the following and the enclosure is up to you.  I used some 1x3" red oak, 330x90x3mm [matte diffusing acrylic](https://www.tapplastics.com/product/plastics/cut_to_size_plastic/black_led_sheet/668) and some 3D printed parts I designed..
 ![matrix_rear_open](docs/images/matrix-rear-open.jpg "matrix_rear_open")
 ![matrix_off](docs/images/matrix-off.jpg "matrix_off")
 ![matrix_rear](docs/images/matrix-rear.jpg "matrix_rear")
 
 **rgbmatrix Setup**
 
-Initially, the rgbmatrix starts up in AP mode with an SSID of 'rgbmatrix' and the password 'password'.  Once connected to its SSID go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
+Initially, the rgbmatrix starts up in AP mode with an SSID of "rgbmatrix" and the password "password".  Once connected to its SSID go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
 
-If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the 'HOSTNAME' variable in the web2rgbmatrix.conf file on the MiSTer.
+If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the "HOSTNAME" variable in the web2rgbmatrix.conf file on the MiSTer.
 
 **MiSTer Setup**
 
@@ -61,11 +61,18 @@ Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
 /media/fat/web2rgbmatrix/S60web2rgbmatrix start
 ```
 
-Modify your 'web2rgbmatrix.conf' to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
+Modify your "web2rgbmatrix.conf" to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
 
 **Test**
 
 After configuring your MiSTer and rgbmatrix, reboot both of them and test by changing cores.
+
+OTA Updates
+-------
+To build the OTA file for future updates, use Sketch-->Export Compiled Binary menu option in the Arduino IDE.  The resulting "web2rgbmatrix.ino.bin" file will be under the build folder within the project folder.
+
+![matrix_ota_file_build](docs/images/matrix-ota-file-build.jpg "matrix_ota_file_build")
+
 
 Credits
 -------
