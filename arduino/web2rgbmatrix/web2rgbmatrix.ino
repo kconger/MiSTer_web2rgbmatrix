@@ -77,7 +77,7 @@ unsigned long last_seen, start_tick;
 int ping_fail = 0;
 
 const char *secrets_filename = "/secrets.json";
-const char *gif_filename = "/core.gif";
+const char *gif_filename = "/temp.gif";
 
 String sd_filename = "";
 StaticJsonDocument<512> doc;
@@ -97,8 +97,6 @@ void setup(void) {
     DBG_OUTPUT_PORT.println("LITTLEFS Mount Failed");
   }
   LittleFS.remove(gif_filename);
-  DBG_OUTPUT_PORT.println("Files in flash:");
-  listDir(LittleFS,"/",1);
 
   // Initialize SD Card
   String sd_status = "";
@@ -106,13 +104,11 @@ void setup(void) {
   if (!SD.begin(SD_SS, spi, 80000000)) {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
     sd_status = "Mount Failed";
-    //return;
   } else {
     uint8_t cardType = SD.cardType();
     if (cardType == CARD_NONE) {
       DBG_OUTPUT_PORT.println("No SD card");
       sd_status = "No card";
-      //return;
     } else {
       card_mounted = true;
       DBG_OUTPUT_PORT.print("SD Card Type: ");
@@ -130,7 +126,6 @@ void setup(void) {
       sd_status = String(cardSize) + "MB";
     }
   }
-  
 
   // Initialize gif object
   gif.begin(LITTLE_ENDIAN_PIXELS);
@@ -206,7 +201,7 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
   delay(2);
-  // Clear initial display
+  // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
     DBG_OUTPUT_PORT.println("Clearing config screen");
@@ -409,7 +404,7 @@ void handleLocalPlay(){
       }
     } else {
       response = "SD Card Not Mounted";
-      server.send(405, F("text/plain"), response);
+      returnFail(response);
     }
   } else {
     response = "Method Not Allowed";
@@ -499,7 +494,7 @@ void handleOTA(){
       "</script>"
       "</body>"
       "</html>";
-    server.send(200, "text/html", html);
+    server.send(200, F("text/html"), html);
   } else {
     server.send(405, F("text/plain"), "Method Not Allowed");
   }
@@ -536,64 +531,69 @@ void handleUpdate(){
 } /* handleUpdate() */
 
 void handleSD() {
-  if (server.method() == HTTP_GET) {
-    String html = 
-      "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
-      "<head>"
-      "<title>web2rgbmatrix - GIF Upload</title>"
-      + style +
-      "</head>"
-      "<body>"
-      "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
-      "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-      "<h1>GIF Upload</h1>"
-      "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
-      "<label id='file-input' for='file'>   Choose file...</label>"
-      "<input type='submit' class=btn value='Upload'>"
-      "<br><br>"
-      "<div id='prg'></div>"
-      "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
-      "<script>"
-      "function sub(obj){"
-      "var fileName = obj.value.split('\\\\');"
-      "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
-      "};"
-      "$('form').submit(function(e){"
-      "e.preventDefault();"
-      "var form = $('#upload_form')[0];"
-      "var data = new FormData(form);"
-      "$.ajax({"
-      "url: '/upload',"
-      "type: 'POST',"
-      "data: data,"
-      "contentType: false,"
-      "processData:false,"
-      "xhr: function() {"
-      "var xhr = new window.XMLHttpRequest();"
-      "xhr.upload.addEventListener('progress', function(evt) {"
-      "if (evt.lengthComputable) {"
-      "var per = evt.loaded / evt.total;"
-      "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
-      "$('#bar').css('width',Math.round(per*100) + '%');"
-      "}"
-      "}, false);"
-      "return xhr;"
-      "},"
-      "success:function(d, s) {"
-      "console.log('success!') "
-      "},"
-      "error: function (a, b, c) {"
-      "}"
-      "});"
-      "});"
-      "</script>"
-      "</body>"
-      "</html>";
-    server.send(200, "text/html", html);
+  if(card_mounted){
+    if (server.method() == HTTP_GET) {
+      String html = 
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+        "<head>"
+        "<title>web2rgbmatrix - GIF Upload</title>"
+        + style +
+        "</head>"
+        "<body>"
+        "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
+        "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
+        "<h1>GIF Upload</h1>"
+        "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
+        "<label id='file-input' for='file'>   Choose file...</label>"
+        "<input type='submit' class=btn value='Upload'>"
+        "<br><br>"
+       "<div id='prg'></div>"
+       "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+        "<script>"
+        "function sub(obj){"
+       "var fileName = obj.value.split('\\\\');"
+        "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
+        "};"
+        "$('form').submit(function(e){"
+        "e.preventDefault();"
+        "var form = $('#upload_form')[0];"
+        "var data = new FormData(form);"
+        "$.ajax({"
+        "url: '/upload',"
+        "type: 'POST',"
+        "data: data,"
+        "contentType: false,"
+        "processData:false,"
+        "xhr: function() {"
+        "var xhr = new window.XMLHttpRequest();"
+        "xhr.upload.addEventListener('progress', function(evt) {"
+        "if (evt.lengthComputable) {"
+        "var per = evt.loaded / evt.total;"
+        "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+        "$('#bar').css('width',Math.round(per*100) + '%');"
+        "}"
+        "}, false);"
+        "return xhr;"
+        "},"
+        "success:function(d, s) {"
+        "console.log('success!') "
+        "},"
+        "error: function (a, b, c) {"
+        "}"
+        "});"
+        "});"
+        "</script>"
+        "</body>"
+        "</html>";
+      server.send(200, F("text/html"), html);
+    } else {
+      returnFail("SD Card Not Mounted");
+    }
   } else {
     server.send(405, F("text/plain"), "Method Not Allowed");
   }
 } /* handleSD() */
+
 void handleUpload() {
   if (card_mounted){
     HTTPUpload& uploadfile = server.upload();
@@ -616,7 +616,7 @@ void handleUpload() {
       }
     }
   } else {
-    server.send(405, F("text/plain"), "SD Card Not Mounted");
+   returnFail("SD Card Not Mounted");
   }
 } /* handleUpload() */
 
@@ -637,60 +637,6 @@ void handleReboot() {
   server.send(200, F("text/html"), html);
   ESP.restart();
 } /* handleReboot() */
-
-bool loadFromFlash(String path) {
-  String data_type = "text/plain";
-  if (path.endsWith("/")) {
-    path += "index.html";
-  }
-  if (path.endsWith(".src")) {
-    path = path.substring(0, path.lastIndexOf("."));
-  } else if (path.endsWith(".htm")) {
-    data_type = "text/html";
-  } else if (path.endsWith(".html")) {
-    data_type = "text/html";
-  } else if (path.endsWith(".css")) {
-    data_type = "text/css";
-  } else if (path.endsWith(".js")) {
-    data_type = "application/javascript";
-  } else if (path.endsWith(".png")) {
-    data_type = "image/png";
-  } else if (path.endsWith(".gif")) {
-    data_type = "image/gif";
-  } else if (path.endsWith(".jpg")) {
-    data_type = "image/jpeg";
-  } else if (path.endsWith(".ico")) {
-    data_type = "image/x-icon";
-  } else if (path.endsWith(".xml")) {
-    data_type = "text/xml";
-  } else if (path.endsWith(".pdf")) {
-    data_type = "application/pdf";
-  } else if (path.endsWith(".zip")) {
-    data_type = "application/zip";
-  }
-  
-  if (!LittleFS.exists(path.c_str())) {
-    DBG_OUTPUT_PORT.println("File doesnt exist");
-    return false;
-  }
-  
-  File data_file = LittleFS.open(path.c_str());
-  if (!data_file) {
-    DBG_OUTPUT_PORT.println("Couldn't open file");
-    return false;
-  }
-
-  if (server.hasArg("download")) {
-    data_type = "application/octet-stream";
-  }
-
-  if (server.streamFile(data_file, data_type) != data_file.size()) {
-    DBG_OUTPUT_PORT.println("Sent less data than expected!");
-  }
-  DBG_OUTPUT_PORT.println("Sent file");
-  data_file.close();
-  return true;
-} /* loadFromFlash() */
 
 bool loadFromSD(String path) {
   if (card_mounted){
@@ -750,9 +696,6 @@ bool loadFromSD(String path) {
 } /* loadFromSD() */
 
 void handleNotFound() {
-  if (loadFromFlash(server.uri())) {
-    return;
-  }
   if (loadFromSD(server.uri())) {
     return;
   }
@@ -767,69 +710,9 @@ void handleNotFound() {
   for (uint8_t i = 0; i < server.args(); i++) {
     message += " NAME:" + server.argName(i) + "\n VALUE:" + server.arg(i) + "\n";
   }
-  server.send(404, "text/plain", message);
+  server.send(404, F("text/plain"), message);
   DBG_OUTPUT_PORT.print(message);
 } /* handleNotFound() */
-
-void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
-  DBG_OUTPUT_PORT.printf("Listing directory: %s\r\n", dirname);
-  File root = fs.open(dirname);
-  if(!root){
-      DBG_OUTPUT_PORT.println("Failed to open directory");
-      return;
-  }
-  if(!root.isDirectory()){
-      DBG_OUTPUT_PORT.println("Not a directory");
-      return;
-  }
-  File file = root.openNextFile();
-  while(file){
-    if(file.isDirectory()){
-      DBG_OUTPUT_PORT.print("  DIR : ");
-      DBG_OUTPUT_PORT.println(file.name());
-      if(levels){
-        listDir(fs, file.path(), levels -1);
-      }
-    } else {
-      DBG_OUTPUT_PORT.print("  FILE: ");
-      DBG_OUTPUT_PORT.print(file.name());
-      DBG_OUTPUT_PORT.print("\tSIZE: ");
-      DBG_OUTPUT_PORT.println(file.size());
-    }
-    file = root.openNextFile();
-  }
-} /* listDir() */
-
-String listDirHTML(fs::FS &fs, const char * dirname, uint8_t levels) {
-  DBG_OUTPUT_PORT.printf("Listing directory: %s\r\n", dirname);
-  String response = "";
-  File root = fs.open(dirname);
-  if(!root){
-      response = "Failed to open directory";
-      DBG_OUTPUT_PORT.println(response);
-      return response;
-  }
-  if(!root.isDirectory()){
-      response = "Not a directory";
-      DBG_OUTPUT_PORT.println(response);
-      return response;
-  }
-  while(true) {
-    File file = root.openNextFile();
-    if (!file) {
-      break;
-    }  
-    if(file.isDirectory()){
-      response += String("<a href='") + String(F(file.name())) + String(F("'>")) + String(F(file.name())) + String(F("</a>")) + String(F("</br>"));
-      if(levels){
-        listDir(fs, file.path(), levels -1);
-      }
-    } else {
-      response += String("<a href='") + String(F(file.name())) + String(F("'>")) + String(F(file.name())) + String(F("</a>")) + String(F("</br>"));
-    }
-  }
-  return response;
-} /* listDirHTML() */
 
 void displaySetup() {
   HUB75_I2S_CFG mxconfig(
@@ -1017,6 +900,7 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
 } /* GIFSeekFile() */
 
 void ShowGIF(const char *name, bool sd) {
+  config_display_on = false;
   dma_display->clearScreen();
   if (sd && card_mounted){
     if (gif.open(name, GIFSDOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
