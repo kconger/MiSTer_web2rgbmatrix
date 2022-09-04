@@ -43,7 +43,6 @@ int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 #define SD_SS 22
 
 SPIClass spi = SPIClass(HSPI);
-bool card_mounted = false;
 
 // Matrix Config
 // See the "displaySetup" method for more display config options
@@ -72,18 +71,16 @@ String style =
 ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
 "</style>";
 
-bool config_display_on = true;
-unsigned long last_seen, start_tick;
-int ping_fail = 0;
-
 const char *secrets_filename = "/secrets.json";
 const char *gif_filename = "/temp.gif";
 
+String wifi_mode = "AP";
+bool card_mounted = false;
+bool config_display_on = true;
+unsigned long last_seen, start_tick;
+int ping_fail = 0;
 String sd_filename = "";
-StaticJsonDocument<512> doc;
-File gif_directory;
 File gif_file, upload_file;
-
 AnimatedGIF gif;
 
 void setup(void) {    
@@ -157,16 +154,12 @@ void setup(void) {
     DBG_OUTPUT_PORT.println(my_ip.toString());
   } else {
     my_ip = WiFi.localIP();
+    wifi_mode = "Client";
     DBG_OUTPUT_PORT.print("Connected! IP address: ");
     DBG_OUTPUT_PORT.println(my_ip.toString());
   }
 
-  String wifi_mode = "AP";
-  if(WiFi.status() == WL_CONNECTED){
-    wifi_mode = "Client";
-  }
   String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
-
   dma_display->setCursor(0, 0);
   dma_display->println(display_string);
 
@@ -190,7 +183,7 @@ void setup(void) {
   server.on("/upload", HTTP_POST, [](){ server.sendHeader("Connection", "close");}, handleUpload);
   server.on("/reboot", handleReboot);
   server.on("/localplay", handleLocalPlay);
-  server.on("/play", HTTP_POST, [](){ server.send(200);}, handleFilePlay);
+  server.on("/play", HTTP_POST, [](){ server.send(200);}, handleRemotePlay);
   server.on("/clear", handleClear);
   server.onNotFound(handleNotFound);
   server.begin();
@@ -257,6 +250,7 @@ bool parseSecrets() {
   }
 
   // Check if we can deserialize the secrets.json file
+  StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, secretsFile);
   if (err) {
     DBG_OUTPUT_PORT.println("ERROR: deserializeJson() failed with code ");
@@ -275,17 +269,13 @@ bool parseSecrets() {
   return true;
 } /* parseSecrets() */
 
-void returnFail(String msg) {
-  server.send(500, F("text/plain"), msg + "\r\n");
-} /* returnFail() */
+void returnHTTPError(int code, String msg) {
+  server.send(code, F("text/plain"), msg + "\r\n");
+} /* returnHTTPError() */
 
 void handleRoot() {
-  String wifi_mode = "AP";
-  if(WiFi.status() == WL_CONNECTED){
-    wifi_mode = "Client";
-  }
-  String sd_status = "Not Found";
   String gif_button = "";
+  String sd_status = "Not Found";
   if(card_mounted){
     sd_status = "Mounted";
     uint64_t cardSize = SD.cardSize() / (1024 * 1024);
@@ -357,7 +347,7 @@ void handleRoot() {
       doc["password"] = server.arg("password");
       File data_file = LittleFS.open(secrets_filename, FILE_WRITE);
       if (!data_file) {
-        returnFail("Failed to open config file for writing");
+        returnHTTPError(500, "Failed to open config file for writing");
       }
       serializeJson(doc, data_file);
       html =
@@ -441,29 +431,40 @@ void handleOTA(){
 } /* handleOTA() */
 
 void handleUpdate(){
+  client_ip = {0,0,0,0};
+  LittleFS.remove(gif_filename);
+  sd_filename = "";
   HTTPUpload& upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
     dma_display->clearScreen();
     dma_display->setCursor(0, 0);
     dma_display->println("OTA Update Started");
     DBG_OUTPUT_PORT.printf("Update: %s\n", upload.filename.c_str());
-    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
       Update.printError(DBG_OUTPUT_PORT);
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
-    /* flashing firmware to ESP*/
+    // Flashing firmware to ESP32
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       Update.printError(DBG_OUTPUT_PORT);
+      dma_display->clearScreen();
       dma_display->setCursor(0, 0);
       dma_display->println("OTA Update Error");
+    } else {
+      dma_display->clearScreen();
+      dma_display->setCursor(0, 0);
+      dma_display->printf("OTA Progress: %d%%\n", (Update.progress()*100)/Update.size());
+      DBG_OUTPUT_PORT.printf("OTA Progress: %d%%\n", (Update.progress()*100)/Update.size());
     }
   } else if (upload.status == UPLOAD_FILE_END) {
-    if (Update.end(true)) { //true to set the size to the current progress
+    if (Update.end(true)) {
+      dma_display->clearScreen();
       dma_display->setCursor(0, 0);
-      dma_display->println("OTA Update Success");
+      dma_display->printf("Update Success: %u\nRebooting...\n", upload.totalSize);
       DBG_OUTPUT_PORT.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
     } else {
       Update.printError(DBG_OUTPUT_PORT);
+      dma_display->clearScreen();
       dma_display->setCursor(0, 0);
       dma_display->println("OTA Update Error");
     }
@@ -527,10 +528,10 @@ void handleSD() {
         "</html>";
       server.send(200, F("text/html"), html);
     } else {
-      returnFail("SD Card Not Mounted");
+      returnHTTPError(500, "SD Card Not Mounted");
     }
   } else {
-    server.send(405, F("text/plain"), "Method Not Allowed");
+    returnHTTPError(405, "SD Card Not Mounted");
   }
 } /* handleSD() */
 
@@ -552,77 +553,20 @@ void handleUpload() {
         DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
         server.send(200, F("text/plain"), "SUCCESS");
       } else {
-        returnFail("Couldn't create file");
+        returnHTTPError(500, "Couldn't create file");
       }
     }
   } else {
-   returnFail("SD Card Not Mounted");
+   returnHTTPError(500, "SD Card Not Mounted");
   }
 } /* handleUpload() */
 
-void handleReboot() {
-  String html =
-    "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
-    "<head>"
-      "<title>Rebooting...</title>"
-      "<meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />"
-    + style +
-    "</head>"
-    "<body>"
-    "<form>"
-      "<p>Rebooting...</p>"
-    "</form>"
-    "</body>"
-    "</html>";
-  server.send(200, F("text/html"), html);
-  ESP.restart();
-} /* handleReboot() */
-
-void handleLocalPlay(){
-  // To play a GIF from SD card with curl
-  // curl http://rgbmatrix.local/localplay?file=MENU.gif
-  String response;
-  if (server.method() == HTTP_GET) {
-    if (card_mounted){
-      if (server.arg("file") != "") {
-        String fullpath = "/gifs/" + server.arg("file");
-        const char *requested_filename = fullpath.c_str();
-        if (!SD.exists(requested_filename)) {
-          response = "Requested local file does not exist";
-          server.send(404, F("text/plain"), response);
-          DBG_OUTPUT_PORT.println(response);
-        } else {
-          response = "Requested local file exists";
-          DBG_OUTPUT_PORT.println(response);
-          server.send(200, F("text/plain"), response);
-          LittleFS.remove(gif_filename);
-          sd_filename = fullpath;
-          client_ip = server.client().remoteIP();
-          ShowGIF(requested_filename, true);
-        } 
-      } else {
-        response = "Method Not Allowed";
-        server.send(405, F("text/plain"), response);
-      }
-    } else {
-      response = "SD Card Not Mounted";
-      returnFail(response);
-    }
-  } else {
-    response = "Method Not Allowed";
-    server.send(405, F("text/plain"), response);
-  }
-  DBG_OUTPUT_PORT.println(response);
-} /* handleLocalPlay() */
-
-void handleFilePlay(){
+void handleRemotePlay(){
   // To play a GIF with curl
-  // curl -F 'file=@1942.gif'  http://rgbmatrix.local/play
+  // curl -F 'file=@1942.gif' http://rgbmatrix.local/play
   HTTPUpload& uploadfile = server.upload();
   if(uploadfile.status == UPLOAD_FILE_START) {
-    String filename = String(gif_filename);
-    if(!filename.startsWith("/")) filename = "/" + filename;
-    DBG_OUTPUT_PORT.print("Upload File Name: "); DBG_OUTPUT_PORT.println(filename);
+    DBG_OUTPUT_PORT.print("Remote Play Upload Started");
     LittleFS.remove(gif_filename);                          // Remove a previous version, otherwise data is appended the file again
     upload_file = LittleFS.open(gif_filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
   } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
@@ -636,10 +580,47 @@ void handleFilePlay(){
       sd_filename = "";
       ShowGIF(gif_filename,false);
     } else {
-      returnFail("Couldn't create file");
+      returnHTTPError(500, "Couldn't create file");
     }
   }
 } /* handleFilePlay() */
+
+void handleLocalPlay(){
+  // To play a GIF from SD card with curl
+  // curl http://rgbmatrix.local/localplay?file=MENU.gif
+  String response;
+  if (server.method() == HTTP_GET) {
+    if (card_mounted){
+      if (server.arg("file") != "") {
+        String fullpath = "/gifs/" + server.arg("file");
+        const char *requested_filename = fullpath.c_str();
+        if (!SD.exists(requested_filename)) {
+          response = "Requested local file does not exist";
+          returnHTTPError(404, response);
+          DBG_OUTPUT_PORT.println(response);
+        } else {
+          response = "Displaying local file";
+          DBG_OUTPUT_PORT.println(response);
+          server.send(200, F("text/plain"), response);
+          LittleFS.remove(gif_filename);
+          sd_filename = fullpath;
+          client_ip = server.client().remoteIP();
+          ShowGIF(requested_filename, true);
+        } 
+      } else {
+        response = "Method Not Allowed";
+        returnHTTPError(405, response);
+      }
+    } else {
+      response = "SD Card Not Mounted";
+      returnHTTPError(500, response);
+    }
+  } else {
+    response = "Method Not Allowed";
+    returnHTTPError(405, response);
+  }
+  DBG_OUTPUT_PORT.println(response);
+} /* handleLocalPlay() */
 
 void handleClear(){
   dma_display->clearScreen();
@@ -662,8 +643,27 @@ void handleClear(){
   server.send(200, F("text/html"), html);
 } /* handleClear() */
 
-bool loadFromSD(String path) {
+void handleReboot() {
+  String html =
+    "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+    "<head>"
+      "<title>Rebooting...</title>"
+      "<meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />"
+    + style +
+    "</head>"
+    "<body>"
+    "<form>"
+      "<p>Rebooting...</p>"
+    "</form>"
+    "</body>"
+    "</html>";
+  server.send(200, F("text/html"), html);
+  ESP.restart();
+} /* handleReboot() */
+
+void handleNotFound() {
   if (card_mounted){
+    String path = server.uri();
     String data_type = "text/plain";
     if (path.endsWith("/")) {
       path += "index.html";
@@ -694,48 +694,28 @@ bool loadFromSD(String path) {
       data_type = "application/zip";
     }
   
-    if (!SD.exists(path.c_str())) {
-      DBG_OUTPUT_PORT.println("File doesnt exist");
-      return false;
+    File data_file;
+    if (SD.exists(path.c_str())) {
+      data_file = SD.open(path.c_str());
+    } else if (LittleFS.exists(path.c_str())) {
+      data_file = LittleFS.open(path.c_str());
+    } else {
+      returnHTTPError(404, "File Not Found");
     }
-  
-    File data_file = SD.open(path.c_str());
+ 
     if (!data_file) {
-      DBG_OUTPUT_PORT.println("Couldn't open file");
-      return false;
-    }
-
-    if (server.hasArg("download")) {
-      data_type = "application/octet-stream";
+      returnHTTPError(500, "Couldn't open file");
     }
 
     if (server.streamFile(data_file, data_type) != data_file.size()) {
       DBG_OUTPUT_PORT.println("Sent less data than expected!");
     }
+    
     DBG_OUTPUT_PORT.println("Sent file");
     data_file.close();
-    return true;
+  } else {
+    returnHTTPError(404, "File Not Found");
   }
-  return false;
-} /* loadFromSD() */
-
-void handleNotFound() {
-  if (loadFromSD(server.uri())) {
-    return;
-  }
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " NAME:" + server.argName(i) + "\n VALUE:" + server.arg(i) + "\n";
-  }
-  server.send(404, F("text/plain"), message);
-  DBG_OUTPUT_PORT.print(message);
 } /* handleNotFound() */
 
 void displaySetup() {
@@ -747,40 +727,11 @@ void displaySetup() {
 
   //Pins for a ESP32-Trinity
   mxconfig.gpio.e = 18;
-
   mxconfig.gpio.b1 = 26;
   mxconfig.gpio.b2 = 12;
-
   mxconfig.gpio.g1 = 27;
   mxconfig.gpio.g2 = 13;
-
-  //Pins for a Adafruit Feather ESP32-S2
-  //mxconfig.gpio.b1 = 39;
-  //mxconfig.gpio.b2 = 12;
-
-  //mxconfig.gpio.g1 = 10;
-  //mxconfig.gpio.g2 = 13;
-
-  //mxconfig.gpio.r1 = 38;
-  //mxconfig.gpio.r2 = 11;
-
-  //mxconfig.gpio.a = 18;
-  //mxconfig.gpio.b = 17;
-  //mxconfig.gpio.c = 16;
-  //mxconfig.gpio.d = 15;
-
-  //mxconfig.gpio.clk = 9;
-  //mxconfig.gpio.lat = 5;
-  //mxconfig.gpio.oe = 6;
-
-  // May or may not be needed depending on your matrix
-  // Example of what needing it looks like:
-  // https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/issues/134#issuecomment-866367216
   mxconfig.clkphase = false;
-
-  // Some matrix panels use different ICs for driving them and some of them have strange quirks.
-  // If the display is not working right, try this.
-  //mxconfig.driver = HUB75_I2S_CFG::FM6126A;
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   dma_display->begin();
