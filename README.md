@@ -20,8 +20,8 @@ Requirements
 Hardware
 - [ESP32 Trinity](https://esp32trinity.com/) or other ESP32 with WiFi
 - (2) 64x32 HUB75 compatible RGB matrix or matrices. [ie.](https://www.aliexpress.com/item/3256801502846969.html)
-- SD Card module [ie.](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
-- SD Card, any size, the one that came with the DE10-Nano works great
+- SD Card module(optional) [ie.](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
+- SD Card(optional), any size, the one that came with the DE10-Nano works great
 - 5V Power Supply, the one that came with the DE10-Nano works great
 
 Software
