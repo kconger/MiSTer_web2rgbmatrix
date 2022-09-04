@@ -62,19 +62,22 @@ IPAddress client_ip(0,0,0,0);
 
 // Style for HTML pages
 String style =
-"<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
-"input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
-"#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
-"#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
-"form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-".btn{background:#3498db;color:#fff;cursor:pointer}.otabtn{background:#218838;color:#fff;cursor:pointer}"
-".rebootbtn{background:#c82333;color:#fff;cursor:pointer}input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
-"</style>";
+  "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+  "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
+  "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
+  "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
+  "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
+  ".btn{background:#3498db;color:#fff;cursor:pointer}.btn:disabled,.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".otabtn{background:#218838;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  "input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
+  "</style>";
 
 const char *secrets_filename = "/secrets.json";
 const char *gif_filename = "/temp.gif";
 
 String wifi_mode = "AP";
+String sd_status = "";
 bool card_mounted = false;
 bool config_display_on = true;
 unsigned long last_seen, start_tick;
@@ -96,7 +99,6 @@ void setup(void) {
   LittleFS.remove(gif_filename);
 
   // Initialize SD Card
-  String sd_status = "";
   spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
   if (!SD.begin(SD_SS, spi, 80000000)) {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
@@ -174,17 +176,17 @@ void setup(void) {
 
   server.on("/", handleRoot);
   server.on("/ota", handleOTA);
-  server.on("/update", HTTP_POST, []() {
+  server.on("/update", HTTP_POST, [](){
     server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+    server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure" : "OTA Update Success");
     ESP.restart();
   }, handleUpdate);
   server.on("/sdcard", handleSD);
-  server.on("/upload", HTTP_POST, [](){ server.sendHeader("Connection", "close");}, handleUpload);
-  server.on("/reboot", handleReboot);
+  server.on("/upload", HTTP_POST, [](){server.sendHeader("Connection", "close");}, handleUpload);
   server.on("/localplay", handleLocalPlay);
-  server.on("/play", HTTP_POST, [](){ server.send(200);}, handleRemotePlay);
+  server.on("/remoteplay", HTTP_POST, [](){server.send(200);}, handleRemotePlay);
   server.on("/clear", handleClear);
+  server.on("/reboot", handleReboot);
   server.onNotFound(handleNotFound);
   server.begin();
   
@@ -250,7 +252,7 @@ bool parseSecrets() {
   }
 
   // Check if we can deserialize the secrets.json file
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<200> doc;
   DeserializationError err = deserializeJson(doc, secretsFile);
   if (err) {
     DBG_OUTPUT_PORT.println("ERROR: deserializeJson() failed with code ");
@@ -260,7 +262,6 @@ bool parseSecrets() {
   }
 
   // Read settings from secrets.json file
-  DBG_OUTPUT_PORT.println("Attempting to find network interface...");
   strlcpy(ssid, doc["ssid"] | DEFAULT_SSID, sizeof(ssid));
   strlcpy(password, doc["password"] | DEFAULT_PASSWORD, sizeof(password));
        
@@ -275,19 +276,15 @@ void returnHTTPError(int code, String msg) {
 
 void handleRoot() {
   String gif_button = "";
-  String sd_status = "Not Found";
   if(card_mounted){
-    sd_status = "Mounted";
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    sd_status = String(cardSize) + "MB";
     gif_button = "<input type=\"button\" class=btn onclick=\"location.href='/sdcard';\" value=\"GIF Upload\" />";
   }
-  String image_html = "";
+  String image_status = "";
   if (LittleFS.exists(gif_filename)){
-    image_html = "Client IP: " + client_ip.toString() + "<br><br>" +
+    image_status = "Client IP: " + client_ip.toString() + "<br><br>" +
     "Current Image<br><img src=\"/core.gif\"><img><br>";
   } else if (sd_filename != ""){
-    image_html = "Client IP: " + client_ip.toString() + "<br><br>" +
+    image_status = "Client IP: " + client_ip.toString() + "<br><br>" +
     "Current Image<br><img src=\"" + sd_filename + "\"><img><br>";
   }
   String html =
@@ -315,7 +312,7 @@ void handleRoot() {
     "SD Card: " + sd_status + "<br>"
     "Wifi Mode: " + wifi_mode + "<br>"
     "rgbmatrix IP: " + my_ip.toString() + "<br>"
-    + image_html + "<br>"
+    + image_status + "<br>"
     "<p>"
     "<b>Wifi Client Settings</b><br>"
     "SSID<br>"
@@ -366,7 +363,7 @@ void handleRoot() {
     }
     server.send(200, F("text/html"), html);
   } else {
-    server.send(405, F("text/plain"), "Method Not Allowed");
+    returnHTTPError(405, "SD Card Not Mounted");
   }
 } /* handleRoot() */
 
@@ -384,7 +381,7 @@ void handleOTA(){
       "<h1>OTA Update</h1>"
       "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
       "<label id='file-input' for='file'>   Choose file...</label>"
-      "<input type='submit' class=btn value='Update'>"
+      "<input id='sub-button' type='submit' class=btn value='Update'>"
       "<br><br>"
       "<div id='prg'></div>"
       "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
@@ -404,18 +401,24 @@ void handleOTA(){
       "contentType: false,"
       "processData:false,"
       "xhr: function() {"
+      "$('#sub-button').prop('disabled', true);"
       "var xhr = new window.XMLHttpRequest();"
       "xhr.upload.addEventListener('progress', function(evt) {"
       "if (evt.lengthComputable) {"
       "var per = evt.loaded / evt.total;"
-      "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+      "if (evt.loaded != evt.total) {"
+      "$('#prg').html('Upload Progress: ' + Math.round(per*100) + '%');"
+      "} else {"
+      "$('#prg').html('Applying update and rebooting');"
+      "}"
       "$('#bar').css('width',Math.round(per*100) + '%');"
       "}"
       "}, false);"
       "return xhr;"
       "},"
       "success:function(d, s) {"
-      "console.log('success!') "
+      "console.log('success!');"
+      "setTimeout(function(){window.location.href = '/';}, 5000);"
       "},"
       "error: function (a, b, c) {"
       "}"
@@ -426,7 +429,7 @@ void handleOTA(){
       "</html>";
     server.send(200, F("text/html"), html);
   } else {
-    server.send(405, F("text/plain"), "Method Not Allowed");
+    returnHTTPError(405, "SD Card Not Mounted");
   }
 } /* handleOTA() */
 
@@ -460,8 +463,9 @@ void handleUpdate(){
     if (Update.end(true)) {
       dma_display->clearScreen();
       dma_display->setCursor(0, 0);
-      dma_display->printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-      DBG_OUTPUT_PORT.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+      dma_display->println("OTA Success\nRebooting...");
+      DBG_OUTPUT_PORT.printf("OTA Success: %u\nRebooting...\n", upload.totalSize);
+      delay(2000);
     } else {
       Update.printError(DBG_OUTPUT_PORT);
       dma_display->clearScreen();
@@ -486,13 +490,13 @@ void handleSD() {
         "<h1>GIF Upload</h1>"
         "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
         "<label id='file-input' for='file'>   Choose file...</label>"
-        "<input type='submit' class=btn value='Upload'>"
+        "<input id='sub-button' type='submit' class=btn value='Upload'>"
         "<br><br>"
-       "<div id='prg'></div>"
-       "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+        "<div id='prg'></div>"
+        "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
         "<script>"
         "function sub(obj){"
-       "var fileName = obj.value.split('\\\\');"
+        "var fileName = obj.value.split('\\\\');"
         "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
         "};"
         "$('form').submit(function(e){"
@@ -510,7 +514,15 @@ void handleSD() {
         "xhr.upload.addEventListener('progress', function(evt) {"
         "if (evt.lengthComputable) {"
         "var per = evt.loaded / evt.total;"
-        "$('#prg').html('progress: ' + Math.round(per*100) + '%');"
+        "if (evt.loaded != evt.total) {"
+        "$('#sub-button').prop('disabled', true);"
+        "$('#prg').html('Upload Progress: ' + Math.round(per*100) + '%');"
+        "} else {"
+        "$('#sub-button').prop('disabled', false);"
+        "var inputFile = $('form').find(\"input[type=file]\");"
+        "var fileName = inputFile[0].files[0].name;"
+        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"/gifs/' + fileName + '\"></a>');"
+        "}"
         "$('#bar').css('width',Math.round(per*100) + '%');"
         "}"
         "}, false);"
@@ -562,8 +574,8 @@ void handleUpload() {
 } /* handleUpload() */
 
 void handleRemotePlay(){
-  // To play a GIF with curl
-  // curl -F 'file=@1942.gif' http://rgbmatrix.local/play
+  // To upload/play a GIF with curl
+  // curl -F 'file=@MENU.gif' http://rgbmatrix.local/remoteplay
   HTTPUpload& uploadfile = server.upload();
   if(uploadfile.status == UPLOAD_FILE_START) {
     DBG_OUTPUT_PORT.print("Remote Play Upload Started");
@@ -583,7 +595,7 @@ void handleRemotePlay(){
       returnHTTPError(500, "Couldn't create file");
     }
   }
-} /* handleFilePlay() */
+} /* handleRemotePlay() */
 
 void handleLocalPlay(){
   // To play a GIF from SD card with curl

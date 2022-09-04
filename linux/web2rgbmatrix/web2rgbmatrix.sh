@@ -52,7 +52,7 @@ senddata() {
   else
     dbug "Trying to send GIF to matrix"
     if [ -r ${GIF_PATH}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/${1}.gif http://${HOSTNAME}/play --output /dev/null --silent) # transfer CORENAME.gif
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
       case $HTTP_CODE in
         "200")
           echo "Successfully copied ${GIF_PATH}/${1}.gif to matrix"
@@ -70,7 +70,7 @@ senddata() {
     else                                                                     # CORENAME.gif file not found
       echo "File ${GIF_PATH}/${1}.gif not found!"
       dbug "File ${GIF_PATH}/${1}.gif not found!"
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/MENU.gif http://${HOSTNAME}/play --output /dev/null --silent)  # transfer MENU.gif
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/MENU.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent)  # transfer MENU.gif
       case $HTTP_CODE in
         "200")
           echo "Successfully copied ${GIF_PATH}/MENU.gif to matrix"
