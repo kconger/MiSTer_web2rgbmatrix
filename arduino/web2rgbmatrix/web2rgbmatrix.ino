@@ -30,7 +30,7 @@ char hostname[80] = DEFAULT_HOSTNAME;
 #define DEFAULT_BRIGHTNESS 255
 const uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_PING_FAIL_COUNT 6 // Set to '0' to disable client check
+#define DEFAULT_PING_FAIL_COUNT 6 // Set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 
 #define DBG_OUTPUT_PORT Serial
@@ -164,8 +164,7 @@ void setup(void) {
   }
 
   String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
-  dma_display->setCursor(0, 0);
-  dma_display->println(display_string);
+  showText(display_string);
 
   // Startup MDNS 
   if (MDNS.begin(hostname)) {
@@ -452,9 +451,7 @@ void handleUpdate(){
   sd_filename = "";
   HTTPUpload& upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
-    dma_display->clearScreen();
-    dma_display->setCursor(0, 0);
-    dma_display->println("OTA Update Started");
+    showTextLine("OTA Update Started");
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
       Update.printError(DBG_OUTPUT_PORT);
     }
@@ -462,24 +459,16 @@ void handleUpdate(){
     // Flashing firmware to ESP32
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       Update.printError(DBG_OUTPUT_PORT);
-      dma_display->clearScreen();
-      dma_display->setCursor(0, 0);
-      dma_display->println("OTA Update Error");
+      showTextLine("OTA Update Error");
     } else {
-      dma_display->clearScreen();
-      dma_display->setCursor(0, 0);
-      dma_display->printf("OTA Progress: %d%%\n", (Update.progress()*100)/Update.size());
+      showTextLine("OTA Progress: " + String((Update.progress()*100)/Update.size()) + "%");
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
-      dma_display->clearScreen();
-      dma_display->setCursor(0, 0);
-      dma_display->printf("OTA Success: %u\nRebooting...\n", upload.totalSize);
+      showTextLine("OTA Update Success\nRebooting...");
     } else {
       Update.printError(DBG_OUTPUT_PORT);
-      dma_display->clearScreen();
-      dma_display->setCursor(0, 0);
-      dma_display->println("OTA Update Error");
+      showTextLine("OTA Update Error");
     }
   }
 } /* handleUpdate() */
@@ -599,7 +588,7 @@ void handleRemotePlay(){
       client_ip = server.client().remoteIP();
       returnHTML("SUCCESS");
       sd_filename = "";
-      ShowGIF(gif_filename,false);
+      showGIF(gif_filename,false);
     } else {
       returnHTTPError(500, "Couldn't create file");
     }
@@ -621,7 +610,7 @@ void handleLocalPlay(){
           LittleFS.remove(gif_filename);
           sd_filename = fullpath;
           client_ip = server.client().remoteIP();
-          ShowGIF(requested_filename, true);
+          showGIF(requested_filename, true);
         } 
       } else {
         returnHTTPError(405, "Method Not Allowed");
@@ -730,22 +719,26 @@ void handleNotFound() {
 void checkSerialClient() {
   if (DBG_OUTPUT_PORT.available()) {
     new_gif = DBG_OUTPUT_PORT.readStringUntil('\n');
-    delay(10);
   }  
   if (new_gif != current_gif) {
     if (card_mounted) {
-      LittleFS.remove(gif_filename);
-      client_ip = {0,0,0,0};
-      if (SD.exists("/gifs/" + new_gif + ".gif")) {
-        sd_filename = "/gifs/" + new_gif + ".gif";
-        ShowGIF(sd_filename.c_str(), true);
-      } else if (SD.exists("/gifs/MENU.gif")){
-        sd_filename = "/gifs/MENU.gif";
-        ShowGIF(sd_filename.c_str(), true);
+      if (new_gif.endsWith("QWERTZ"));
+      else if (new_gif == "cls") dma_display->clearScreen();
+      else if (new_gif == "sorg");
+      else if (new_gif == "bye");
+      else {
+        LittleFS.remove(gif_filename);
+        client_ip = {0,0,0,0};
+        if (SD.exists("/gifs/" + new_gif + ".gif")) {
+          sd_filename = "/gifs/" + new_gif + ".gif";
+          showGIF(sd_filename.c_str(), true);
+        } else {
+          showTextLine(new_gif);
+        }
       }
     }
+    current_gif = new_gif;
   }
-  current_gif = new_gif;
 } /* checkSerialClient() */
 
 void displaySetup() {
@@ -768,6 +761,18 @@ void displaySetup() {
   dma_display->setBrightness8(brightness); //0-255
   dma_display->clearScreen();
 } /* displaySetup() */
+
+void showTextLine(String text){
+  dma_display->clearScreen();
+  dma_display->setCursor(0, 0);
+  dma_display->println("\n" + text);
+} /* showTextLine() */
+
+void showText(String text){
+  dma_display->clearScreen();
+  dma_display->setCursor(0, 0);
+  dma_display->println(text);
+} /* showTextLine() */
 
 // Copy a horizontal span of pixels from a source buffer to an X,Y position
 // in matrix back buffer, applying horizontal clipping. Vertical clipping is
@@ -904,7 +909,7 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
   return pFile->iPos;
 } /* GIFSeekFile() */
 
-void ShowGIF(const char *name, bool sd) {
+void showGIF(const char *name, bool sd) {
   config_display_on = false;
   dma_display->clearScreen();
   if (sd && card_mounted){
@@ -922,4 +927,4 @@ void ShowGIF(const char *name, bool sd) {
       gif.close();
     }
   }
-} /* ShowGIF() */
+} /* showGIF() */
