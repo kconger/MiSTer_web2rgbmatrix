@@ -73,7 +73,7 @@ After configuring your MiSTer and rgbmatrix, reboot both of them and test by cha
 
 OTA Updates
 -------
-To build the OTA file for future updates, use Sketch-->Export Compiled Binary menu option in the Arduino IDE.  The resulting "web2rgbmatrix.ino.bin" file will be under the build folder within the project folder.
+To build a OTA update file, use "Sketch"-->"Export Compiled Binary" menu option in the Arduino IDE.  The resulting "web2rgbmatrix.ino.bin" file will be under the build folder within the project folder.
 
 ![matrix_ota_file_build](docs/images/matrix-ota-file-build.jpg "matrix_ota_file_build")
 
