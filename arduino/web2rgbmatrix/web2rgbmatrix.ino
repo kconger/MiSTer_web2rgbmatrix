@@ -84,6 +84,8 @@ unsigned long last_seen, start_tick;
 int ping_fail = 0;
 String sd_filename = "";
 File gif_file, upload_file;
+String new_gif = "";
+String current_gif = "";
 AnimatedGIF gif;
 
 void setup(void) {    
@@ -179,6 +181,7 @@ void setup(void) {
   server.on("/update", HTTP_POST, [](){
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure" : "OTA Update Success");
+    delay(2000);
     ESP.restart();
   }, handleUpdate);
   server.on("/sdcard", handleSD);
@@ -197,10 +200,10 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
   delay(2);
+  checkSerialClient();
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
-    DBG_OUTPUT_PORT.println("Clearing config screen");
     dma_display->clearScreen();
   }
   // Check if client who requested core image has gone away, if so clear screen
@@ -214,7 +217,7 @@ void loop(void) {
             DBG_OUTPUT_PORT.println("Initial Ping failed");
             ping_fail = ping_fail + 1;
           } else {
-            DBG_OUTPUT_PORT.println("Ping succesful.");
+            DBG_OUTPUT_PORT.println("Ping success");
             ping_fail = 0;
           }
         }
@@ -227,7 +230,7 @@ void loop(void) {
             ping_fail = ping_fail + 1;
             DBG_OUTPUT_PORT.println(ping_fail);
           } else {
-            DBG_OUTPUT_PORT.println("Ping succesful.");
+            DBG_OUTPUT_PORT.println("Ping success");
             ping_fail = 0;
           }
         }
@@ -269,6 +272,10 @@ bool parseSecrets() {
   secretsFile.close();
   return true;
 } /* parseSecrets() */
+
+void returnHTML(String html) {
+  server.send(200, F("text/html"), html);
+} /* returnHTML() */
 
 void returnHTTPError(int code, String msg) {
   server.send(code, F("text/plain"), msg + "\r\n");
@@ -361,7 +368,7 @@ void handleRoot() {
         "</body>"
         "</html>";
     }
-    server.send(200, F("text/html"), html);
+    returnHTML(html);
   } else {
     returnHTTPError(405, "SD Card Not Mounted");
   }
@@ -384,7 +391,9 @@ void handleOTA(){
       "<input id='sub-button' type='submit' class=btn value='Update'>"
       "<br><br>"
       "<div id='prg'></div>"
-      "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+      "<br><div id='prgbar'><div id='bar'></div></div><br>"
+      "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+      "</form>"
       "<script>"
       "function sub(obj){"
       "var fileName = obj.value.split('\\\\');"
@@ -402,6 +411,7 @@ void handleOTA(){
       "processData:false,"
       "xhr: function() {"
       "$('#sub-button').prop('disabled', true);"
+      "$('#back-button').prop('disabled', true);"
       "var xhr = new window.XMLHttpRequest();"
       "xhr.upload.addEventListener('progress', function(evt) {"
       "if (evt.lengthComputable) {"
@@ -421,13 +431,14 @@ void handleOTA(){
       "setTimeout(function(){window.location.href = '/';}, 5000);"
       "},"
       "error: function (a, b, c) {"
+      "console.log('ERROR!');"
       "}"
       "});"
       "});"
       "</script>"
       "</body>"
       "</html>";
-    server.send(200, F("text/html"), html);
+    returnHTML(html);
   } else {
     returnHTTPError(405, "SD Card Not Mounted");
   }
@@ -442,7 +453,6 @@ void handleUpdate(){
     dma_display->clearScreen();
     dma_display->setCursor(0, 0);
     dma_display->println("OTA Update Started");
-    DBG_OUTPUT_PORT.printf("Update: %s\n", upload.filename.c_str());
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { // Start with max available size
       Update.printError(DBG_OUTPUT_PORT);
     }
@@ -457,15 +467,12 @@ void handleUpdate(){
       dma_display->clearScreen();
       dma_display->setCursor(0, 0);
       dma_display->printf("OTA Progress: %d%%\n", (Update.progress()*100)/Update.size());
-      DBG_OUTPUT_PORT.printf("OTA Progress: %d%%\n", (Update.progress()*100)/Update.size());
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
       dma_display->clearScreen();
       dma_display->setCursor(0, 0);
-      dma_display->println("OTA Success\nRebooting...");
-      DBG_OUTPUT_PORT.printf("OTA Success: %u\nRebooting...\n", upload.totalSize);
-      delay(2000);
+      dma_display->printf("OTA Success: %u\nRebooting...\n", upload.totalSize);
     } else {
       Update.printError(DBG_OUTPUT_PORT);
       dma_display->clearScreen();
@@ -493,7 +500,9 @@ void handleSD() {
         "<input id='sub-button' type='submit' class=btn value='Upload'>"
         "<br><br>"
         "<div id='prg'></div>"
-        "<br><div id='prgbar'><div id='bar'></div></div><br></form>"
+        "<br><div id='prgbar'><div id='bar'></div></div><br>"
+        "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+        "</form>"
         "<script>"
         "function sub(obj){"
         "var fileName = obj.value.split('\\\\');"
@@ -516,9 +525,11 @@ void handleSD() {
         "var per = evt.loaded / evt.total;"
         "if (evt.loaded != evt.total) {"
         "$('#sub-button').prop('disabled', true);"
+        "$('#back-button').prop('disabled', true);"
         "$('#prg').html('Upload Progress: ' + Math.round(per*100) + '%');"
         "} else {"
         "$('#sub-button').prop('disabled', false);"
+        "$('#back-button').prop('disabled', false);"
         "var inputFile = $('form').find(\"input[type=file]\");"
         "var fileName = inputFile[0].files[0].name;"
         "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"/gifs/' + fileName + '\"></a>');"
@@ -538,7 +549,7 @@ void handleSD() {
         "</script>"
         "</body>"
         "</html>";
-      server.send(200, F("text/html"), html);
+      returnHTML(html);
     } else {
       returnHTTPError(500, "SD Card Not Mounted");
     }
@@ -553,7 +564,6 @@ void handleUpload() {
     if(uploadfile.status == UPLOAD_FILE_START) {
       String filename = String(uploadfile.filename);
       if(!filename.startsWith("/")) filename = "/gifs/" + String(uploadfile.filename);
-      DBG_OUTPUT_PORT.print("Upload File Name: "); DBG_OUTPUT_PORT.println(filename);
       SD.remove(filename);                          // Remove a previous version, otherwise data is appended the file again
       upload_file = SD.open(filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
       filename = String();
@@ -562,8 +572,7 @@ void handleUpload() {
     } else if (uploadfile.status == UPLOAD_FILE_END) {
       if(upload_file) {                                    
         upload_file.close();
-        DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
-        server.send(200, F("text/plain"), "SUCCESS");
+        returnHTML("SUCCESS");
       } else {
         returnHTTPError(500, "Couldn't create file");
       }
@@ -578,7 +587,6 @@ void handleRemotePlay(){
   // curl -F 'file=@MENU.gif' http://rgbmatrix.local/remoteplay
   HTTPUpload& uploadfile = server.upload();
   if(uploadfile.status == UPLOAD_FILE_START) {
-    DBG_OUTPUT_PORT.print("Remote Play Upload Started");
     LittleFS.remove(gif_filename);                          // Remove a previous version, otherwise data is appended the file again
     upload_file = LittleFS.open(gif_filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
   } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
@@ -587,8 +595,7 @@ void handleRemotePlay(){
     if(upload_file) {                                    
       upload_file.close();
       client_ip = server.client().remoteIP();
-      DBG_OUTPUT_PORT.print("Upload Size: "); DBG_OUTPUT_PORT.println(uploadfile.totalSize);
-      server.send(200, F("text/plain"), "SUCCESS");
+      returnHTML("SUCCESS");
       sd_filename = "";
       ShowGIF(gif_filename,false);
     } else {
@@ -600,38 +607,29 @@ void handleRemotePlay(){
 void handleLocalPlay(){
   // To play a GIF from SD card with curl
   // curl http://rgbmatrix.local/localplay?file=MENU.gif
-  String response;
   if (server.method() == HTTP_GET) {
     if (card_mounted){
       if (server.arg("file") != "") {
         String fullpath = "/gifs/" + server.arg("file");
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
-          response = "Requested local file does not exist";
-          returnHTTPError(404, response);
-          DBG_OUTPUT_PORT.println(response);
+          returnHTTPError(404, "File Not Found");
         } else {
-          response = "Displaying local file";
-          DBG_OUTPUT_PORT.println(response);
-          server.send(200, F("text/plain"), response);
+          returnHTML("Displaying local file");
           LittleFS.remove(gif_filename);
           sd_filename = fullpath;
           client_ip = server.client().remoteIP();
           ShowGIF(requested_filename, true);
         } 
       } else {
-        response = "Method Not Allowed";
-        returnHTTPError(405, response);
+        returnHTTPError(405, "Method Not Allowed");
       }
     } else {
-      response = "SD Card Not Mounted";
-      returnHTTPError(500, response);
+      returnHTTPError(500, "SD Card Not Mounted");
     }
   } else {
-    response = "Method Not Allowed";
-    returnHTTPError(405, response);
+    returnHTTPError(405, "Method Not Allowed");
   }
-  DBG_OUTPUT_PORT.println(response);
 } /* handleLocalPlay() */
 
 void handleClear(){
@@ -652,7 +650,7 @@ void handleClear(){
     "</form>"
     "</body>"
     "</html>";
-  server.send(200, F("text/html"), html);
+  returnHTML(html);
 } /* handleClear() */
 
 void handleReboot() {
@@ -669,66 +667,84 @@ void handleReboot() {
     "</form>"
     "</body>"
     "</html>";
-  server.send(200, F("text/html"), html);
+  returnHTML(html);
   ESP.restart();
 } /* handleReboot() */
 
 void handleNotFound() {
-  if (card_mounted){
-    String path = server.uri();
-    String data_type = "text/plain";
-    if (path.endsWith("/")) {
-      path += "index.html";
-    }
-    if (path.endsWith(".src")) {
-      path = path.substring(0, path.lastIndexOf("."));
-    } else if (path.endsWith(".htm")) {
-     data_type = "text/html";
-    } else if (path.endsWith(".html")) {
-      data_type = "text/html";
-    } else if (path.endsWith(".css")) {
-      data_type = "text/css";
-    } else if (path.endsWith(".js")) {
-      data_type = "application/javascript";
-    } else if (path.endsWith(".png")) {
-      data_type = "image/png";
-    } else if (path.endsWith(".gif")) {
-      data_type = "image/gif";
-    } else if (path.endsWith(".jpg")) {
-      data_type = "image/jpeg";
-    } else if (path.endsWith(".ico")) {
-      data_type = "image/x-icon";
-    } else if (path.endsWith(".xml")) {
-      data_type = "text/xml";
-    } else if (path.endsWith(".pdf")) {
-      data_type = "application/pdf";
-    } else if (path.endsWith(".zip")) {
-      data_type = "application/zip";
-    }
+  String path = server.uri();
+  String data_type = "text/plain";
+  if (path.endsWith("/")) {
+    path += "index.html";
+  }
+  if (path.endsWith(".src")) {
+    path = path.substring(0, path.lastIndexOf("."));
+  } else if (path.endsWith(".htm")) {
+    data_type = "text/html";
+  } else if (path.endsWith(".html")) {
+    data_type = "text/html";
+  } else if (path.endsWith(".css")) {
+    data_type = "text/css";
+  } else if (path.endsWith(".js")) {
+    data_type = "application/javascript";
+  } else if (path.endsWith(".png")) {
+    data_type = "image/png";
+  } else if (path.endsWith(".gif")) {
+    data_type = "image/gif";
+  } else if (path.endsWith(".jpg")) {
+    data_type = "image/jpeg";
+  } else if (path.endsWith(".ico")) {
+    data_type = "image/x-icon";
+  } else if (path.endsWith(".xml")) {
+    data_type = "text/xml";
+  } else if (path.endsWith(".pdf")) {
+    data_type = "application/pdf";
+  } else if (path.endsWith(".zip")) {
+    data_type = "application/zip";
+  }
   
-    File data_file;
+  File data_file;
+  if (LittleFS.exists(path.c_str())) {
+      data_file = LittleFS.open(path.c_str());
+  } else if (card_mounted) {
     if (SD.exists(path.c_str())) {
       data_file = SD.open(path.c_str());
-    } else if (LittleFS.exists(path.c_str())) {
-      data_file = LittleFS.open(path.c_str());
     } else {
       returnHTTPError(404, "File Not Found");
     }
+  } 
  
-    if (!data_file) {
-      returnHTTPError(500, "Couldn't open file");
-    }
-
-    if (server.streamFile(data_file, data_type) != data_file.size()) {
-      DBG_OUTPUT_PORT.println("Sent less data than expected!");
-    }
-    
-    DBG_OUTPUT_PORT.println("Sent file");
-    data_file.close();
-  } else {
-    returnHTTPError(404, "File Not Found");
+  if (!data_file) {
+    returnHTTPError(500, "Couldn't open file");
   }
+
+  if (server.streamFile(data_file, data_type) != data_file.size()) {
+    DBG_OUTPUT_PORT.println("Sent less data than expected!");
+  }
+
+  data_file.close();
 } /* handleNotFound() */
+
+void checkSerialClient() {
+  if (DBG_OUTPUT_PORT.available()) {
+    new_gif = DBG_OUTPUT_PORT.readStringUntil('\n');
+    delay(10);
+  }  
+  if (new_gif != current_gif) {
+    if (card_mounted) {
+      LittleFS.remove(gif_filename);
+      client_ip = {0,0,0,0};
+      if (SD.exists("/gifs/" + new_gif + ".gif")) {
+        sd_filename = "/gifs/" + new_gif + ".gif";
+        ShowGIF(sd_filename.c_str(), true);
+      } else if (SD.exists("/gifs/MENU.gif")){
+        sd_filename = "/gifs/MENU.gif";
+        ShowGIF(sd_filename.c_str(), true);
+      }
+    }
+  }
+  current_gif = new_gif;
+} /* checkSerialClient() */
 
 void displaySetup() {
   HUB75_I2S_CFG mxconfig(

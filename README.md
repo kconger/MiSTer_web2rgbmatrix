@@ -13,7 +13,7 @@ Current features
 - Web: Wifi Configuration 
 - Web: GIF uploads to SD Card
 - Web: OTA updates
-- Serial debug output
+- Serial: [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) service support
 
 Requirements
 -------
