@@ -200,7 +200,9 @@ void setup(void) {
 void loop(void) {
   server.handleClient();
   delay(2);
-  checkSerialClient();
+  if (card_mounted) {
+    checkSerialClient();
+  }
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
