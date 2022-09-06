@@ -18,8 +18,8 @@ char ssid[80] = DEFAULT_SSID;
 #define DEFAULT_PASSWORD "password"
 char password[80] = DEFAULT_PASSWORD;
 
-#define DEFAULT_AP "rgbmatrix"
-char ap[80] = DEFAULT_AP;
+#define DEFAULT_AP_SSID "rgbmatrix"
+char ap[80] = DEFAULT_AP_SSID;
 
 #define DEFAULT_AP_PASSWORD "password"
 char ap_password[80] = DEFAULT_PASSWORD;
@@ -32,6 +32,9 @@ const uint8_t brightness = DEFAULT_BRIGHTNESS;
 
 #define DEFAULT_PING_FAIL_COUNT 6 // Set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
+
+#define DEFAULT_SD_GIF_FOLDER "/gifs/"
+char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
 
@@ -63,6 +66,7 @@ IPAddress client_ip(0,0,0,0);
 // Style for HTML pages
 String style =
   "<style>#file-input,input{width:100%;height:44px;border-radius:4px;margin:10px auto;font-size:15px}"
+  "a{outline:none;text-decoration:none;padding: 2px 1px 0;color:#777;}a:link{color:#777;}a:hover{solid;color:#3498db;}"
   "input{background:#f1f1f1;border:0;padding:0 15px}body{background:#3498db;font-family:sans-serif;font-size:14px;color:#777}"
   "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
   "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
@@ -73,6 +77,7 @@ String style =
   "input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
   "</style>";
 
+String homepage = "https://github.com/kconger/MiSTer_web2rgbmatrix";
 const char *secrets_filename = "/secrets.json";
 const char *gif_filename = "/temp.gif";
 
@@ -80,12 +85,13 @@ String wifi_mode = "AP";
 String sd_status = "";
 bool card_mounted = false;
 bool config_display_on = true;
+bool tty_client = false;
 unsigned long last_seen, start_tick;
 int ping_fail = 0;
 String sd_filename = "";
 File gif_file, upload_file;
-String new_gif = "";
-String current_gif = "";
+String new_command = "";
+String current_command = "";
 AnimatedGIF gif;
 
 void setup(void) {    
@@ -138,8 +144,7 @@ void setup(void) {
   parseSecrets();
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  DBG_OUTPUT_PORT.print("Connecting to ");
-  DBG_OUTPUT_PORT.println(ssid);
+  DBG_OUTPUT_PORT.print("Connecting to ");DBG_OUTPUT_PORT.println(ssid);
     
   // Wait for connection
   uint8_t i = 0;
@@ -147,24 +152,17 @@ void setup(void) {
     delay(500);
   }
   if (i == 21) {
-    DBG_OUTPUT_PORT.print("Could not connect to ");
-    DBG_OUTPUT_PORT.println(ssid);
-  
+    DBG_OUTPUT_PORT.print("Could not connect to ");DBG_OUTPUT_PORT.println(ssid);
     // Startup Access Point
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ap, ap_password);
     my_ip = WiFi.softAPIP();
-    DBG_OUTPUT_PORT.print("IP address: ");
-    DBG_OUTPUT_PORT.println(my_ip.toString());
+    DBG_OUTPUT_PORT.print("IP address: ");DBG_OUTPUT_PORT.println(my_ip.toString());
   } else {
     my_ip = WiFi.localIP();
-    wifi_mode = "Client";
-    DBG_OUTPUT_PORT.print("Connected! IP address: ");
-    DBG_OUTPUT_PORT.println(my_ip.toString());
+    wifi_mode = "Infrastructure";
+    DBG_OUTPUT_PORT.print("Connected! IP address: ");DBG_OUTPUT_PORT.println(my_ip.toString());
   }
-
-  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
-  showText(display_string);
 
   // Startup MDNS 
   if (MDNS.begin(hostname)) {
@@ -175,6 +173,7 @@ void setup(void) {
     DBG_OUTPUT_PORT.println(".local");
   }
 
+  // Startup Webserver
   server.on("/", handleRoot);
   server.on("/ota", handleOTA);
   server.on("/update", HTTP_POST, [](){
@@ -192,16 +191,18 @@ void setup(void) {
   server.onNotFound(handleNotFound);
   server.begin();
   
+  // Display boot status on matrix
+  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
+  showText(display_string);
   start_tick = millis();
+
   DBG_OUTPUT_PORT.println("Startup Complete");
 } /* setup() */
 
 void loop(void) {
   server.handleClient();
   delay(2);
-  if (card_mounted) {
-    checkSerialClient();
-  }
+  checkSerialClient();
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
@@ -289,10 +290,10 @@ void handleRoot() {
   }
   String image_status = "";
   if (LittleFS.exists(gif_filename)){
-    image_status = "Client IP: " + client_ip.toString() + "<br><br>" +
+    image_status = "Client: " + client_ip.toString() + "<br><br>" +
     "Current Image<br><img src=\"/core.gif\"><img><br>";
   } else if (sd_filename != ""){
-    image_status = "Client IP: " + client_ip.toString() + "<br><br>" +
+    image_status = "Client: " + ((tty_client) ? "Serial" : client_ip.toString()) + "<br><br>" +
     "Current Image<br><img src=\"" + sd_filename + "\"><img><br>";
   }
   String html =
@@ -314,7 +315,7 @@ void handleRoot() {
     "</head>"
     "<body>"
     "<form action=\"/\">"
-    "<h1>web2rgbmatrix</h1><br>"
+    "<a href=\""+ homepage + "\"><h1>web2rgbmatrix</h1></a><br>"
     "<p>"
     "<b>Status</b><br>"
     "SD Card: " + sd_status + "<br>"
@@ -523,7 +524,7 @@ void handleSD() {
         "$('#back-button').prop('disabled', false);"
         "var inputFile = $('form').find(\"input[type=file]\");"
         "var fileName = inputFile[0].files[0].name;"
-        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"/gifs/' + fileName + '\"></a>');"
+        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"" + String(gif_folder) + "' + fileName + '\"></a>');"
         "}"
         "$('#bar').css('width',Math.round(per*100) + '%');"
         "}"
@@ -554,12 +555,12 @@ void handleUpload() {
     HTTPUpload& uploadfile = server.upload();
     if(uploadfile.status == UPLOAD_FILE_START) {
       String filename = String(uploadfile.filename);
-      if(!filename.startsWith("/")) filename = "/gifs/" + String(uploadfile.filename);
-      SD.remove(filename);                          // Remove a previous version, otherwise data is appended the file again
-      upload_file = SD.open(filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
+      if(!filename.startsWith("/")) filename = String(gif_folder) + String(uploadfile.filename);
+      SD.remove(filename);
+      upload_file = SD.open(filename, FILE_WRITE);
       filename = String();
     } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
-      if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize); // Write the received bytes to the file
+      if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize);
     } else if (uploadfile.status == UPLOAD_FILE_END) {
       if(upload_file) {                                    
         upload_file.close();
@@ -578,16 +579,17 @@ void handleRemotePlay(){
   // curl -F 'file=@MENU.gif' http://rgbmatrix.local/remoteplay
   HTTPUpload& uploadfile = server.upload();
   if(uploadfile.status == UPLOAD_FILE_START) {
-    LittleFS.remove(gif_filename);                          // Remove a previous version, otherwise data is appended the file again
-    upload_file = LittleFS.open(gif_filename, FILE_WRITE);  // Open the file for writing (create it, if doesn't exist)
+    LittleFS.remove(gif_filename);
+    upload_file = LittleFS.open(gif_filename, FILE_WRITE);
   } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
-    if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize); // Write the received bytes to the file
+    if(upload_file) upload_file.write(uploadfile.buf, uploadfile.currentSize);
   } else if (uploadfile.status == UPLOAD_FILE_END) {
     if(upload_file) {                                    
       upload_file.close();
       client_ip = server.client().remoteIP();
       returnHTML("SUCCESS");
       sd_filename = "";
+      tty_client = false;
       showGIF(gif_filename,false);
     } else {
       returnHTTPError(500, "Couldn't create file");
@@ -601,13 +603,14 @@ void handleLocalPlay(){
   if (server.method() == HTTP_GET) {
     if (card_mounted){
       if (server.arg("file") != "") {
-        String fullpath = "/gifs/" + server.arg("file");
+        String fullpath = String(gif_folder) + server.arg("file");
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
           returnHTTPError(404, "File Not Found");
         } else {
           returnHTML("Displaying local file");
           LittleFS.remove(gif_filename);
+          tty_client = false;
           sd_filename = fullpath;
           client_ip = server.client().remoteIP();
           showGIF(requested_filename, true);
@@ -718,26 +721,31 @@ void handleNotFound() {
 
 void checkSerialClient() {
   if (DBG_OUTPUT_PORT.available()) {
-    new_gif = DBG_OUTPUT_PORT.readStringUntil('\n');
+    new_command = DBG_OUTPUT_PORT.readStringUntil('\n');
   }  
-  if (new_gif != current_gif) {
-    if (card_mounted) {
-      if (new_gif.endsWith("QWERTZ"));
-      else if (new_gif == "cls") dma_display->clearScreen();
-      else if (new_gif == "sorg");
-      else if (new_gif == "bye");
-      else {
-        LittleFS.remove(gif_filename);
-        client_ip = {0,0,0,0};
-        if (SD.exists("/gifs/" + new_gif + ".gif")) {
-          sd_filename = "/gifs/" + new_gif + ".gif";
+  if (new_command != current_command) {
+    if (new_command.endsWith("QWERTZ"));
+    else if (new_command.startsWith("CMD"));
+    else if (new_command == "cls");
+    else if (new_command == "sorg");
+    else if (new_command == "bye");
+    else {
+      tty_client = true;
+      sd_filename = "";
+      LittleFS.remove(gif_filename);
+      client_ip = {0,0,0,0};
+      if (card_mounted) {
+        if (SD.exists(String(gif_folder) + new_command + ".gif")) {
+          sd_filename = String(gif_folder) + new_command + ".gif";
           showGIF(sd_filename.c_str(), true);
         } else {
-          showTextLine(new_gif);
+          showTextLine(new_command);
         }
+      } else {
+        showTextLine(new_command);
       }
     }
-    current_gif = new_gif;
+    current_command = new_command;
   }
 } /* checkSerialClient() */
 
@@ -858,8 +866,7 @@ void GIFDraw(GIFDRAW *pDraw) {
 } /* GIFDraw() */
 
 void * GIFOpenFile(const char *fname, int32_t *pSize) {
-  DBG_OUTPUT_PORT.print("Playing gif: ");
-  DBG_OUTPUT_PORT.println(fname);
+  DBG_OUTPUT_PORT.print("Playing gif: ");DBG_OUTPUT_PORT.println(fname);
   gif_file = LittleFS.open(fname);
   if (gif_file) {
     *pSize = gif_file.size();
@@ -869,8 +876,7 @@ void * GIFOpenFile(const char *fname, int32_t *pSize) {
 } /* GIFOpenFile() */
 
 void * GIFSDOpenFile(const char *fname, int32_t *pSize) {
-  DBG_OUTPUT_PORT.print("Playing gif from SD: ");
-  DBG_OUTPUT_PORT.println(fname);
+  DBG_OUTPUT_PORT.print("Playing gif from SD: ");DBG_OUTPUT_PORT.println(fname);
   gif_file = SD.open(fname);
   if (gif_file) {
     *pSize = gif_file.size();

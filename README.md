@@ -18,7 +18,7 @@ Current features
 Requirements
 -------
 Hardware
-- [ESP32 Trinity](https://esp32trinity.com/) or other ESP32 with WiFi
+- [ESP32-Trinity](https://esp32trinity.com/) or other ESP32 with WiFi
 - (2) 64x32 HUB75 compatible RGB matrix or matrices. [ie.](https://www.aliexpress.com/item/3256801502846969.html)
 - SD Card module(optional) [ie.](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
 - SD Card(optional), any size, the one that came with the DE10-Nano works great
@@ -33,7 +33,7 @@ Install
 -------
 **ESP32 Setup**
 
-Flash the Arduino sketch to the EXP32-Trinity using Arduino IDE. If using another ESP32 board you may need to adjust pin assignments in the ino file.
+Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using another ESP32 board you may need to adjust pin assignments in the ino file.
 
 **rgbmatrix SD Card Setup**
 
@@ -82,6 +82,6 @@ Credits
 -------
 Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) projects.
 
-Linux/MiSTer service code from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) with minor modifications.
+Linux/MiSTer service code from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
 Most GIFS sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade)
