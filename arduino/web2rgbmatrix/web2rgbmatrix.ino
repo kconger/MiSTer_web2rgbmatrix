@@ -203,6 +203,11 @@ void loop(void) {
   server.handleClient();
   delay(2);
   checkSerialClient();
+  // Try to reconnect if Wifi connection is lost.
+  if (WiFi.status() != WL_CONNECTED) {
+    DBG_OUTPUT_PORT.println("WiFi lost!");
+    WiFi.reconnect();
+  }
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
@@ -276,7 +281,7 @@ bool parseSecrets() {
 } /* parseSecrets() */
 
 void returnHTML(String html) {
-  server.send(200, F("text/html"), html);
+  server.send(200, F("text/html"), html + "\r\n");
 } /* returnHTML() */
 
 void returnHTTPError(int code, String msg) {
@@ -291,7 +296,7 @@ void handleRoot() {
   String image_status = "";
   if (LittleFS.exists(gif_filename)){
     image_status = "Client: " + client_ip.toString() + "<br><br>" +
-    "Current Image<br><img src=\"/core.gif\"><img><br>";
+    "Current Image<br><img src=\"" + String(gif_filename) + "\"><img><br>";
   } else if (sd_filename != ""){
     image_status = "Client: " + ((tty_client) ? "Serial" : client_ip.toString()) + "<br><br>" +
     "Current Image<br><img src=\"" + sd_filename + "\"><img><br>";
