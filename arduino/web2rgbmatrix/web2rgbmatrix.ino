@@ -108,7 +108,7 @@ void setup(void) {
 
   // Initialize SD Card
   spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
-  if (!SD.begin(SD_SS, spi, 80000000)) {
+  if (!SD.begin(SD_SS, spi, 8000000)) {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
     sd_status = "Mount Failed";
   } else {
@@ -163,6 +163,9 @@ void setup(void) {
     wifi_mode = "Infrastructure";
     DBG_OUTPUT_PORT.print("Connected! IP address: ");DBG_OUTPUT_PORT.println(my_ip.toString());
   }
+  WiFi.onEvent(WiFiStationConnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
+  WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
   // Startup MDNS 
   if (MDNS.begin(hostname)) {
@@ -189,6 +192,9 @@ void setup(void) {
   server.on("/clear", handleClear);
   server.on("/reboot", handleReboot);
   server.onNotFound(handleNotFound);
+  const char *headerkeys[] = {"Content-Length"};
+  size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
+  server.collectHeaders(headerkeys, headerkeyssize);
   server.begin();
   
   // Display boot status on matrix
@@ -203,11 +209,6 @@ void loop(void) {
   server.handleClient();
   delay(2);
   checkSerialClient();
-  // Try to reconnect if Wifi connection is lost.
-  if (WiFi.status() != WL_CONNECTED) {
-    DBG_OUTPUT_PORT.println("WiFi lost!");
-    WiFi.reconnect();
-  }
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
@@ -279,6 +280,24 @@ bool parseSecrets() {
   secretsFile.close();
   return true;
 } /* parseSecrets() */
+
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  DBG_OUTPUT_PORT.println("Connected to AP successfully!");
+} /* WiFiStationConnected() */
+
+void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
+  DBG_OUTPUT_PORT.println("WiFi connected");
+  DBG_OUTPUT_PORT.println("IP address: ");
+  DBG_OUTPUT_PORT.println(WiFi.localIP());
+  my_ip = WiFi.localIP();
+} /* WiFiGotIP() */
+
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  DBG_OUTPUT_PORT.print("WiFi lost connection. Reason: ");
+  DBG_OUTPUT_PORT.println(info.wifi_sta_disconnected.reason);
+  DBG_OUTPUT_PORT.println("Trying to Reconnect");
+  WiFi.begin(ssid, password);
+} /* WiFiStationDisconnected() */
 
 void returnHTML(String html) {
   server.send(200, F("text/html"), html + "\r\n");
@@ -582,8 +601,14 @@ void handleUpload() {
 void handleRemotePlay(){
   // To upload/play a GIF with curl
   // curl -F 'file=@MENU.gif' http://rgbmatrix.local/remoteplay
+  static long contentLength = 0;
   HTTPUpload& uploadfile = server.upload();
   if(uploadfile.status == UPLOAD_FILE_START) {
+    contentLength = server.header("Content-Length").toInt();
+    if (contentLength > (LittleFS.totalBytes() - LittleFS.usedBytes())) {
+      Serial.println("File too large: " + String(contentLength) + " > " + String(LittleFS.totalBytes() - LittleFS.usedBytes()));
+      returnHTTPError(500, "File too large");
+    }
     LittleFS.remove(gif_filename);
     upload_file = LittleFS.open(gif_filename, FILE_WRITE);
   } else if (uploadfile.status == UPLOAD_FILE_WRITE) {
@@ -727,6 +752,7 @@ void handleNotFound() {
 void checkSerialClient() {
   if (DBG_OUTPUT_PORT.available()) {
     new_command = DBG_OUTPUT_PORT.readStringUntil('\n');
+    new_command.trim();
   }  
   if (new_command != current_command) {
     if (new_command.endsWith("QWERTZ"));
