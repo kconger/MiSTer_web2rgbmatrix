@@ -98,7 +98,14 @@ while true; do                                                                # 
       senddata "${NEWCORE}"                                                   # The "Magic"
       OLDCORE="${NEWCORE}"                                                    # update oldcore variable
     fi                                                                        # end if core check
-    inotifywait -e modify "${CORENAMEFILE}"                                   # wait here for next change of corename
+    if [ "${DEBUG}" = "false" ]; then
+      # wait here for next change of corename, -qq for quietness
+      inotifywait -qq -e modify "${CORENAMEFILE}"
+    fi
+    if [ "${DEBUG}" = "true" ]; then
+      # but not -qq when debugging
+      inotifywait -e modify "${CORENAMEFILE}"
+    fi
   else                                                                        # CORENAME file not found
    echo "File ${CORENAMEFILE} not found!"
    dbug "File ${CORENAMEFILE} not found!"
