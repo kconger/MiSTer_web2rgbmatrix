@@ -27,7 +27,13 @@ Hardware
 Software
 - Arduino IDE
 - ESP32 Board Support Package
-- Library Dependencies: AnimatedGIF, ArduinoJson, ESP32-HUB75-MatrixPanel-I2S, ESP32Ping
+- Library Dependencies: AnimatedGIF, ArduinoJson, ESP32-HUB75-MatrixPanel-I2S, ESP32Ping, SimpleFTPServer
+
+The SimpleFTPServer libraries FtpServerKey.h needs the following defined changed to 'STORAGE_SD'
+
+```
+#define DEFAULT_STORAGE_TYPE_ESP32		STORAGE_SD
+```
 
 Install
 -------

@@ -8,6 +8,7 @@
 #include <ESPmDNS.h>
 #include <LittleFS.h>
 #include <Update.h>
+#include <SimpleFTPServer.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -38,6 +39,8 @@ char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
 
+#define VERSION 1.0
+
 // SD Card reader pins
 // ESP32-Trinity Pins
 #define SD_SCLK 33
@@ -62,6 +65,7 @@ WebServer server(80);
 IPAddress my_ip;
 IPAddress no_ip(0,0,0,0);
 IPAddress client_ip(0,0,0,0);
+FtpServer ftp_server;
 
 // Style for HTML pages
 String style =
@@ -106,34 +110,6 @@ void setup(void) {
   }
   LittleFS.remove(gif_filename);
 
-  // Initialize SD Card
-  spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
-  if (!SD.begin(SD_SS, spi, 8000000)) {
-    DBG_OUTPUT_PORT.println("Card Mount Failed");
-    sd_status = "Mount Failed";
-  } else {
-    uint8_t cardType = SD.cardType();
-    if (cardType == CARD_NONE) {
-      DBG_OUTPUT_PORT.println("No SD card");
-      sd_status = "No card";
-    } else {
-      card_mounted = true;
-      DBG_OUTPUT_PORT.print("SD Card Type: ");
-      if (cardType == CARD_MMC) {
-        DBG_OUTPUT_PORT.println("MMC");
-      } else if (cardType == CARD_SD) {
-        DBG_OUTPUT_PORT.println("SDSC");
-      } else if (cardType == CARD_SDHC) {
-        DBG_OUTPUT_PORT.println("SDHC");
-      } else {
-        DBG_OUTPUT_PORT.println("UNKNOWN");
-      }
-      uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-      DBG_OUTPUT_PORT.printf("SD Card Size: %lluMB\n", cardSize);
-      sd_status = String(cardSize) + "MB";
-    }
-  }
-
   // Initialize gif object
   gif.begin(LITTLE_ENDIAN_PIXELS);
 
@@ -167,11 +143,41 @@ void setup(void) {
   WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
+  // Initialize SD Card
+  spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
+  if (SD.begin(SD_SS, spi, 8000000)) {
+    uint8_t cardType = SD.cardType();
+    if (cardType == CARD_NONE) {
+      DBG_OUTPUT_PORT.println("No SD card");
+      sd_status = "No card";
+    } else {
+      card_mounted = true;
+      DBG_OUTPUT_PORT.print("SD Card Type: ");
+      if (cardType == CARD_MMC) {
+        DBG_OUTPUT_PORT.println("MMC");
+      } else if (cardType == CARD_SD) {
+        DBG_OUTPUT_PORT.println("SDSC");
+      } else if (cardType == CARD_SDHC) {
+        DBG_OUTPUT_PORT.println("SDHC");
+      } else {
+        DBG_OUTPUT_PORT.println("UNKNOWN");
+      }
+      uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+      DBG_OUTPUT_PORT.printf("SD Card Size: %lluMB\n", cardSize);
+      sd_status = String(cardSize) + "MB";
+      ftp_server.begin(ap, ap_password); 
+    }
+  } else {
+    DBG_OUTPUT_PORT.println("Card Mount Failed");
+    sd_status = "Mount Failed";
+  }
+
   // Startup MDNS 
   if (MDNS.begin(hostname)) {
     MDNS.addService("http", "tcp", 80);
+    MDNS.addService("ftp", "tcp", 21);
     DBG_OUTPUT_PORT.println("MDNS responder started");
-    DBG_OUTPUT_PORT.print("You can now connect to http://");
+    DBG_OUTPUT_PORT.print("You can now connect to ");
     DBG_OUTPUT_PORT.print(hostname);
     DBG_OUTPUT_PORT.println(".local");
   }
@@ -189,6 +195,8 @@ void setup(void) {
   server.on("/upload", HTTP_POST, [](){server.sendHeader("Connection", "close");}, handleUpload);
   server.on("/localplay", handleLocalPlay);
   server.on("/remoteplay", HTTP_POST, [](){server.send(200);}, handleRemotePlay);
+  server.on("/text", handleText);
+  server.on("/version", handleVersion);
   server.on("/clear", handleClear);
   server.on("/reboot", handleReboot);
   server.onNotFound(handleNotFound);
@@ -207,7 +215,7 @@ void setup(void) {
 
 void loop(void) {
   server.handleClient();
-  delay(2);
+  ftp_server.handleFTP();
   checkSerialClient();
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
@@ -471,6 +479,7 @@ void handleOTA(){
 } /* handleOTA() */
 
 void handleUpdate(){
+  // curl -F 'file=@web2rgbmatrix.ino.bin' http://rgbmatrix.local/update
   client_ip = {0,0,0,0};
   LittleFS.remove(gif_filename);
   sd_filename = "";
@@ -548,7 +557,7 @@ void handleSD() {
         "$('#back-button').prop('disabled', false);"
         "var inputFile = $('form').find(\"input[type=file]\");"
         "var fileName = inputFile[0].files[0].name;"
-        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"" + String(gif_folder) + "' + fileName + '\"></a>');"
+        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"" + String(gif_folder) + "' + fileName.charAt(0) + '/' + fileName + '\"></a>');"
         "}"
         "$('#bar').css('width',Math.round(per*100) + '%');"
         "}"
@@ -579,7 +588,7 @@ void handleUpload() {
     HTTPUpload& uploadfile = server.upload();
     if(uploadfile.status == UPLOAD_FILE_START) {
       String filename = String(uploadfile.filename);
-      if(!filename.startsWith("/")) filename = String(gif_folder) + String(uploadfile.filename);
+      if(!filename.startsWith("/")) filename = String(gif_folder) + filename.charAt(0) + "/" + String(uploadfile.filename);
       SD.remove(filename);
       upload_file = SD.open(filename, FILE_WRITE);
       filename = String();
@@ -629,14 +638,15 @@ void handleRemotePlay(){
 
 void handleLocalPlay(){
   // To play a GIF from SD card with curl
-  // curl http://rgbmatrix.local/localplay?file=MENU.gif
+  // curl http://rgbmatrix.local/localplay?file=MENU
   if (server.method() == HTTP_GET) {
     if (card_mounted){
       if (server.arg("file") != "") {
-        String fullpath = String(gif_folder) + server.arg("file");
+        String fullpath = String(gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
           returnHTTPError(404, "File Not Found");
+          showTextLine(server.arg("file"));
         } else {
           returnHTML("Displaying local file");
           LittleFS.remove(gif_filename);
@@ -655,6 +665,23 @@ void handleLocalPlay(){
     returnHTTPError(405, "Method Not Allowed");
   }
 } /* handleLocalPlay() */
+
+void handleText(){
+  if (server.method() == HTTP_GET) {
+    if (server.arg("line") != "") {
+        showTextLine(server.arg("line"));
+        returnHTML("SUCCESS");
+      } else {
+        returnHTTPError(405, "Method Not Allowed");
+      }
+  } else {
+    returnHTTPError(405, "Method Not Allowed");
+  }
+} /* handleText() */
+
+void handleVersion(){
+  returnHTML(String(VERSION));
+} /* handleVersion() */
 
 void handleClear(){
   dma_display->clearScreen();

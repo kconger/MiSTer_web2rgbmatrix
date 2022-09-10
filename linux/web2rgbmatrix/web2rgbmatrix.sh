@@ -19,70 +19,56 @@ dbug() {
 senddata() {
   if [ "${SD_INSTALLED}" = "true" ]; then
     dbug "Requesting matrix to display GIF from its SD Card File"
-    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${1}.gif --output /dev/null --silent) # request CORENAME.gif
+    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${1} --output /dev/null --silent) # request CORENAME.gif
     case $HTTP_CODE in
       "200")
-        echo "Successfully requested ${1}.gif"
-        dbug "Successfully requested ${1}.gif"
+        echo "Successfully requested ${1} GIF"
+        dbug "Successfully requested ${1} GIF"
         ;;
       "404")
-        echo "${1}.gif not found on matrix SD, trying MENU.gif"
-        dbug "${1}.gif not found on matrix SD, trying MENU.gif"
-        HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=MENU.gif --output /dev/null --silent) # request CORENAME.gif
-        case $HTTP_CODE in
-          "200")
-            echo "Successfully requested MENU.gif"
-            dbug "Successfully requested MENU.gif"
-            ;;
-          "404")
-            echo "MENU.gif not found on matrix SD"
-            dbug "MENU.gif not found on matrix SD"
-            ;;
-          *)
-            echo "Unknown error requesting MENU.gif on matrix"
-            dbug "Unknown error requesting MENU.gif on matrix"
-            ;;
-        esac
+        echo "${1} GIF not found on matrix SD"
+        dbug "${1} GIF not found on matrix SD"
         ;;
       *)
-        echo "Unknown error requesting ${1}.gif on matrix"
-        dbug "Unknown error requesting ${1}.gif on matrix"
+        echo "Unknown error requesting ${1} GIF on matrix"
+        dbug "Unknown error requesting ${1} GIF on matrix"
         ;;
     esac
   else
     dbug "Trying to send GIF to matrix"
-    if [ -r ${GIF_PATH}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
+    LTR=$(echo "${1:0:1}" | tr [a-z] [A-Z])
+    if [ -r ${GIF_PATH}/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
       case $HTTP_CODE in
         "200")
-          echo "Successfully copied ${GIF_PATH}/${1}.gif to matrix"
-          dbug "Successfully copied ${GIF_PATH}/${1}.gif to matrix"
+          echo "Successfully copied ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          dbug "Successfully copied ${GIF_PATH}/${LTR}/${1}.gif to matrix"
           ;;
         "500")
-          echo "Error copying ${GIF_PATH}/${1}.gif to matrix"
-          dbug "Error copying ${GIF_PATH}/${1}.gif to matrix"
+          echo "Error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          dbug "Error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
           ;;
         *)
-          echo "Unknown error copying ${GIF_PATH}/${1}.gif to matrix"
-          dbug "Unknown error copying ${GIF_PATH}/${1}.gif to matrix"
+          echo "Unknown error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          dbug "Unknown error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
           ;;
       esac
     else                                                                     # CORENAME.gif file not found
-      echo "File ${GIF_PATH}/${1}.gif not found!"
-      dbug "File ${GIF_PATH}/${1}.gif not found!"
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/MENU.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent)  # transfer MENU.gif
+      echo "File ${GIF_PATH}/${LTR}/${1}.gif not found!"
+      dbug "File ${GIF_PATH}/${LTR}/${1}.gif not found!"
+      HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/text?line=${1} --output /dev/null --silent) # request Core Name as text
       case $HTTP_CODE in
         "200")
-          echo "Successfully copied ${GIF_PATH}/MENU.gif to matrix"
-          dbug "Successfully copied ${GIF_PATH}/MENU.gif to matrix"
+          echo "Successfully requested text display: ${1}"
+          dbug "Successfully requested text display: ${1}"
           ;;
         "500")
-          echo "Error copying ${GIF_PATH}/MENU.gif to matrix"
-          dbug "Error copying ${GIF_PATH}/MENU.gif to matrix"
+          echo "Error requesting text display: ${1}"
+          dbug "Error requesting text display: ${1}"
           ;;
         *)
-          echo "Unknown error copying ${GIF_PATH}/MENU.gif to matrix"
-          dbug "Unknown error copying ${GIF_PATH}/MENU.gif to matrix"
+          echo "Unknown error requesting text display: ${1}"
+          dbug "Unknown error requesting text display: ${1}"
           ;;
       esac
     fi
