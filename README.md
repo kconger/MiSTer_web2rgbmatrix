@@ -43,7 +43,7 @@ Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using anothe
 
 **rgbmatrix SD Card Setup**
 
-Format an SD card as FAT and create a folder called "gifs" at its root.  To start you can copy the static GISs included into that "gifs" folder.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of animated GIFs you can use as well.
+Format an SD card as FAT and copy the "gifs" folder to its root.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of animated GIFs you can use as well.
 GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif
 
 **Assembly**
