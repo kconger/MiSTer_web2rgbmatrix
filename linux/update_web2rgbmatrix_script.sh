@@ -15,9 +15,9 @@
 # You can download the latest version of this script from:
 # https://github.com/kconger/MiSTer_web2rgbmatrix
 
-
-! [ -e /media/fat/web2rgbmatrix/web2rgbmatrix.conf ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix.conf
-. /media/fat/web2rgbmatrix/web2rgbmatrix.conf
+! [ -e /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
+. /media/fat/web2rgbmatrix/web2rgbmatrix-system.ini
+. /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
 # Check for and create web2rgbmatrix script folder
 [[ -d ${WEB2RGBMATRIX_PATH} ]] && cd ${WEB2RGBMATRIX_PATH} || mkdir ${WEB2RGBMATRIX_PATH}
