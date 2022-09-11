@@ -59,15 +59,17 @@ else
 fi
 
 # Check and update INI files if neccessary
-wget ${NODEBUG} --no-cache "${REPOSITORY_URL}/linux/web2rgbmatrix/web2rgbmatrix.conf" -O /tmp/web2rgbmatrix.conf
+wget ${NODEBUG} --no-cache "${REPOSITORY_URL}/linux/web2rgbmatrix/web2rgbmatrix-system.ini" -O /tmp/web2rgbmatrix-system.ini
 check4error "${?}"
-. /tmp/web2rgbmatrix.conf
+. /tmp/web2rgbmatrix-system.ini
 [[ -d "${WEB2RGBMATRIX_PATH}" ]] || mkdir "${WEB2RGBMATRIX_PATH}"
-cmp -s /tmp/web2rgbmatrix.conf "${WEB2RGBMATRIX_PATH}/web2rgbmatrix.conf"
+cmp -s /tmp/web2rgbmatrix-system.ini "${WEB2RGBMATRIX_PATH}/web2rgbmatrix-system.ini"
 if [ "${?}" -gt "0" ]; then
-    mv /tmp/web2rgbmatrix.conf "${WEB2RGBMATRIX_PATH}/web2rgbmatrix.conf"
-    . "${WEB2RGBMATRIX_PATH}/web2rgbmatrix.conf"
+    mv /tmp/web2rgbmatrix-system.ini "${WEB2RGBMATRIX_PATH}/web2rgbmatrix-system.ini"
+    . "${WEB2RGBMATRIX_PATH}/web2rgbmatrix-system.ini"
 fi
+
+! [ -e /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
 wget ${NODEBUG} --no-cache "${REPOSITORY_URL}/linux/update_web2rgbmatrix_script.sh" -O "${SCRIPTNAME}"
 check4error "${?}"
