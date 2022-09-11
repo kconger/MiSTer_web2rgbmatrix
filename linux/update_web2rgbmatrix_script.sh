@@ -102,7 +102,7 @@ if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
   cd ${GIF_PATH}/../
   find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
 else
-    
+  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
 fi
 
 # Update ESP32-Trinity
