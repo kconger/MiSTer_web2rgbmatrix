@@ -57,21 +57,17 @@ Wiring should look like the following and the enclosure is up to you.  I used so
 
 Initially, the rgbmatrix starts up in AP mode with an SSID of "rgbmatrix" and the password "password".  Once connected to its SSID go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
 
-If using the rgbmatrix in Wifi infrastructure mode, you'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the "HOSTNAME" variable in the web2rgbmatrix.conf file on the MiSTer.
+You'll want to create a DHCP reservation on your DHCP server so that your IP doesn't change. Add this IP to the "HOSTNAME" variable in the web2rgbmatrix-user.ini file on the MiSTer.
 
 ![matrix_webui](docs/images/matrix-webui.jpg "matrix_webui")
 
 **MiSTer Setup**
 
-Copy linux/web2rgbmatrix folder to root of your MiSTer_Data partition. ie. /media/fat/web2rgbmatrix
+Copy linux/update_web2rgbmatrix.sh to your MiSTer Scripts folder. ie. /media/fat/Scripts/
 
-Add the following to the bottom of MiSTer_Data/linux/user-startup.sh
+Run "update_web2rgbmatrix.sh" on your MiSTer.  This can be done from the console, ssh or TV.
 
-```
-/media/fat/web2rgbmatrix/S60web2rgbmatrix start
-```
-
-Modify your "web2rgbmatrix.conf" to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
+Modify your "/media/fat/web2rgbmatrix/web2rgbmatrix-user.ini" to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
 
 **Test**
 

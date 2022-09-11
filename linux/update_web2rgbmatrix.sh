@@ -22,8 +22,7 @@ fgreen="\e[1;32m"
 fred="\e[1;31m"
 fyellow="\e[1;33m"
 
-#REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master"
-REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/testing"
+REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master"
 
 SCRIPTNAME="/tmp/update_web2rgbmatrix_script.sh"
 NODEBUG="-q -o /dev/null"
