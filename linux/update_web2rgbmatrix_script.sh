@@ -97,29 +97,36 @@ if [ "${GIF_UPDATE}" = "yes" ]; then
 else
   wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
 fi
-
-if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
-  cd ${GIF_PATH}/../
-  find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
+if ["${HOSTNAME}" != "rgbmatrix.local"]; then
+  if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
+    cd ${GIF_PATH}/../
+    find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
+  else
+    echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
+  fi
 else
-  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
+  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because ${fcyan}HOSTNAME${fyellow} is not set in user INI-Option${freset}"
 fi
 
 # Update ESP32-Trinity
 cd /tmp
-if [ "${TRINITY_UPDATE}" = "yes" ]; then
-  LATEST=$(wget -q -O - "${REPOSITORY_URL}/releases/LATEST")
-  CURRENT=$(wget -q -O - "${HOSTNAME}/version")
-  if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
-    wget ${NODEBUG} "${REPOSITORY_URL}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
-    if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
-      curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
+if ["${HOSTNAME}" != "rgbmatrix.local"]; then
+  if [ "${TRINITY_UPDATE}" = "yes" ]; then
+    LATEST=$(wget -q -O - "${REPOSITORY_URL}/releases/LATEST")
+    CURRENT=$(wget -q -O - "${HOSTNAME}/version")
+    if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
+      wget ${NODEBUG} "${REPOSITORY_URL}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
+      if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
+        curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
+      fi
+    else
+      echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because already at latest version: ${fcyan}${LATEST}${freset}"
     fi
   else
-    echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because already at latest version: ${fcyan}${LATEST}${freset}"
+    echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because of the ${fcyan}TRINITY_UPDATE${fyellow} INI-Option${freset}"
   fi
 else
-  echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because of the ${fcyan}TRINITY_UPDATE${fyellow} INI-Option${freset}"
+  echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because ${fcyan}HOSTNAME${fyellow} is not set in user INI-Option${freset}"
 fi
 
 # Check and remount root non-writable if neccessary
