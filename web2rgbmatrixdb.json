@@ -1,0 +1,19 @@
+{
+    "base_files_url": "",
+    "db_files": [],
+    "db_id": "web2rgbmatrix_files",
+    "db_url": "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/main/web2rgbmatrixdb.json",
+    "default_options": {},
+    "files": {
+	"Scripts/update_web2rgbmatrix.sh": {
+	    "hash": "36df9543a33708b371360393512ba5f0",
+	    "size": 3450,
+	    "url": "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/main/update_web2rgbmatrix.sh"
+	}
+    },
+    "folders": {
+	"Scripts": {}
+    },
+    "timestamp": 1662858476,
+    "zips": {}
+}
