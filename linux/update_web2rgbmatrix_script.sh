@@ -91,6 +91,7 @@ fi
 # GIFs
 if [ "${SD_INSTALLED}" = "true" ]; then
     # Update remote files
+    echo "Remote Files"
 else
     # Update local files
     if ! [ -f ${GIF_PATH} ]; then
