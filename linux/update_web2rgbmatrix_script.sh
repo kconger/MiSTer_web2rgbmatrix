@@ -105,7 +105,7 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
   fi
 else
-  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because ${fcyan}HOSTNAME${fyellow} is not set in user INI-Option${freset}"
+  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
 fi
 
 # Update ESP32-Trinity
@@ -126,7 +126,7 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because of the ${fcyan}TRINITY_UPDATE${fyellow} INI-Option${freset}"
   fi
 else
-  echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because ${fcyan}HOSTNAME${fyellow} is not set in user INI-Option${freset}"
+  echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
 fi
 
 # Check and remount root non-writable if neccessary
