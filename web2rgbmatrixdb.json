@@ -6,14 +6,14 @@
     "default_options": {},
     "files": {
 	"Scripts/update_web2rgbmatrix.sh": {
-	    "hash": "36df9543a33708b371360393512ba5f0",
-	    "size": 3450,
+	    "hash": "95a1b355f1475fd81e512a412f5ba98b",
+	    "size": 3460,
 	    "url": "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/testing/update_web2rgbmatrix.sh"
 	}
     },
     "folders": {
 	"Scripts": {}
     },
-    "timestamp": 1662858476,
+    "timestamp": 1662907730,
     "zips": {}
 }

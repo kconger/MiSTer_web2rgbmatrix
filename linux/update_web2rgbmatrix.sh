@@ -25,9 +25,9 @@ REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/t
 SCRIPTNAME="/tmp/update_web2rgbmatrix_script.sh"
 NODEBUG="-q -o /dev/null"
 
-echo -e "\n +----------+";
+echo -e "\n +---------------+";
 echo -e " | ${fblue}web2rgbmatrix${freset} |---[]";
-echo -e " +----------+\n";
+echo -e " +---------------+\n";
 
 check4error() {
   case "${1}" in
