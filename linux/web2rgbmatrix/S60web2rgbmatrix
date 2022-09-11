@@ -3,7 +3,8 @@
 # web2rgbmatrix Daemon Script
 #
 
-. /media/fat/web2rgbmatrix/web2rgbmatrix.conf
+. /media/fat/web2rgbmatrix/web2rgbmatrix-system.ini
+. /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
 # Start
 start() {
