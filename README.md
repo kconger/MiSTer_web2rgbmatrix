@@ -9,6 +9,7 @@ Current features
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Turns off the display if requesting client is off for 1 minute
 - Displays network and SD card status at boot for 1 minute
+- MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, and connected client
 - Web: Wifi Configuration 
 - Web: GIF uploads to SD Card
