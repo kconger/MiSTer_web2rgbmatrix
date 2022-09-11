@@ -19,7 +19,7 @@
 . /media/fat/web2rgbmatrix/web2rgbmatrix-system.ini
 . /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
-echo ${REPOSITORY_URL}
+echo "REPO: ${REPOSITORY_URL}"
 
 # Check for and create web2rgbmatrix script folder
 [[ -d ${WEB2RGBMATRIX_PATH} ]] && cd ${WEB2RGBMATRIX_PATH} || mkdir ${WEB2RGBMATRIX_PATH}
