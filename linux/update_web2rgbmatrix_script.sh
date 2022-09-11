@@ -19,8 +19,6 @@
 . /media/fat/web2rgbmatrix/web2rgbmatrix-system.ini
 . /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
-echo "REPO: ${REPOSITORY_URL}"
-
 # Check for and create web2rgbmatrix script folder
 [[ -d ${WEB2RGBMATRIX_PATH} ]] && cd ${WEB2RGBMATRIX_PATH} || mkdir ${WEB2RGBMATRIX_PATH}
 
@@ -101,7 +99,6 @@ fi
 # Update ESP32-Trinity
 cd /tmp
 if [ "${TRINITY_UPDATE}" = "yes" ]; then
-    echo ${NODEBUG} "$REPOSITORY_URL/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
   wget ${NODEBUG} "${REPOSITORY_URL}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
   if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
       curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
