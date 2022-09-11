@@ -66,7 +66,7 @@ elif ! cmp -s /tmp/S60web2rgbmatrix ${INITSCRIPT}; then
     mv -f /tmp/S60web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
   else
-    echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
+    echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} conf-Option${freset}"
   fi
 fi
 [[ -f /tmp/S60web2rgbmatrix ]] && rm /tmp/S60web2rgbmatrix
@@ -84,17 +84,17 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
     mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
     chmod +x ${DAEMONSCRIPT}
   else
-    echo -e "${fblink}Skipping${fyellow} available daemon script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
+    echo -e "${fblink}Skipping${fyellow} available daemon script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} conf-Option${freset}"
   fi
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
 # TODO pictures
-if [ "${SD_INSTALLED}" = "true" ]; then
+#if [ "${SD_INSTALLED}" = "true" ]; then
     # Update remote files
-else
+#else
     # Update local files
-fi
+#fi
 
 
 # Update ESP32-Trinity
@@ -104,6 +104,8 @@ if [ "${TRINITY_UPDATE}" = "yes" ]; then
   if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
       curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
   fi
+else
+  echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because of the ${fcyan}TRINITY_UPDATE${fyellow} conf-Option${freset}"
 fi
 
 # Check and remount root non-writable if neccessary
