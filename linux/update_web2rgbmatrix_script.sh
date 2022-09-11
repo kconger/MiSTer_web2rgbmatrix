@@ -97,7 +97,7 @@ if [ "${GIF_UPDATE}" = "yes" ]; then
 else
   wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
 fi
-if ["${HOSTNAME}" != "rgbmatrix.local"]; then
+if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
     cd ${GIF_PATH}/../
     find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
@@ -110,7 +110,7 @@ fi
 
 # Update ESP32-Trinity
 cd /tmp
-if ["${HOSTNAME}" != "rgbmatrix.local"]; then
+if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${TRINITY_UPDATE}" = "yes" ]; then
     LATEST=$(wget -q -O - "${REPOSITORY_URL}/releases/LATEST")
     CURRENT=$(wget -q -O - "${HOSTNAME}/version")
