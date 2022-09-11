@@ -350,6 +350,7 @@ void handleRoot() {
     "<a href=\""+ homepage + "\"><h1>web2rgbmatrix</h1></a><br>"
     "<p>"
     "<b>Status</b><br>"
+    "Version: " + String(VERSION) + "<br>"
     "SD Card: " + sd_status + "<br>"
     "Wifi Mode: " + wifi_mode + "<br>"
     "rgbmatrix IP: " + my_ip.toString() + "<br>"
