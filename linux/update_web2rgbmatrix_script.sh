@@ -99,7 +99,6 @@ wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/mas
 if [ "${SD_INSTALLED}" = "true" ]; then
     # Update remote files
     cd ${GIF_PATH}/../
-    wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
     find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
 else
     
