@@ -98,7 +98,7 @@ else
         mkdir ${GIF_PATH}
     fi
     cd ${GIF_PATH}
-    wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix/gifs"
+    wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
 fi
 
 # Update ESP32-Trinity
