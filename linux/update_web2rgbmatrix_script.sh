@@ -116,7 +116,7 @@ if [ "${TRINITY_UPDATE}" = "yes" ]; then
       curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
     fi
   else
-    echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because already at latest version: ${LATEST}${freset}"
+    echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because already at latest version: ${fcyan}${LATEST}${freset}"
   fi
 else
   echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because of the ${fcyan}TRINITY_UPDATE${fyellow} INI-Option${freset}"
