@@ -187,7 +187,7 @@ void setup(void) {
   server.on("/ota", handleOTA);
   server.on("/update", HTTP_POST, [](){
     server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure" : "OTA Update Success");
+    server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure\n" : "OTA Update Success\n");
     delay(2000);
     ESP.restart();
   }, handleUpdate);

@@ -88,13 +88,17 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
-# TODO pictures
-#if [ "${SD_INSTALLED}" = "true" ]; then
+# GIFs
+if [ "${SD_INSTALLED}" = "true" ]; then
     # Update remote files
-#else
+else
     # Update local files
-#fi
-
+    if ! [ -f ${GIF_PATH} ]; then
+        mkdir ${GIF_PATH}
+    fi
+    cd ${GIF_PATH}
+    wget ${NODEBUG} -O - ${REPOSITORY_URL}/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix/gifs"
+fi
 
 # Update ESP32-Trinity
 cd /tmp
