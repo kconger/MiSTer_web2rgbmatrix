@@ -59,7 +59,7 @@ else
 fi
 
 # Check and update INI files if neccessary
-wget ${NODEBUG} --no-cache "${REPOSITORY_URL}/linux/web2rgbmatrix.conf" -O /tmp/web2rgbmatrix.conf
+wget ${NODEBUG} --no-cache "${REPOSITORY_URL}/linux/web2rgbmatrix/web2rgbmatrix.conf" -O /tmp/web2rgbmatrix.conf
 check4error "${?}"
 . /tmp/web2rgbmatrix.conf
 [[ -d "${WEB2RGBMATRIX_PATH}" ]] || mkdir "${WEB2RGBMATRIX_PATH}"
