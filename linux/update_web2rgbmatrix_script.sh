@@ -89,16 +89,20 @@ fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
 # GIFs
+# Update local files
+if ! [ -f ${GIF_PATH} ]; then
+    mkdir ${GIF_PATH}
+fi
+cd ${GIF_PATH}
+wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
+
 if [ "${SD_INSTALLED}" = "true" ]; then
     # Update remote files
-    echo "Remote Files"
-else
-    # Update local files
-    if ! [ -f ${GIF_PATH} ]; then
-        mkdir ${GIF_PATH}
-    fi
-    cd ${GIF_PATH}
+    cd ${GIF_PATH}/../
     wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
+    find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
+else
+    
 fi
 
 # Update ESP32-Trinity
