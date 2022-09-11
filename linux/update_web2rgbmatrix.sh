@@ -18,6 +18,9 @@
 
 freset="\e[0m\033[0m"
 fblue="\e[1;34m"
+fgreen="\e[1;32m"
+fred="\e[1;31m"
+fyellow="\e[1;33m"
 
 #REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master"
 REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/testing"
