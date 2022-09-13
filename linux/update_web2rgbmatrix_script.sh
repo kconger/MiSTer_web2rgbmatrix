@@ -91,8 +91,8 @@ fi
 # GIFs
 # Check for and create web2rgbmatrix gifs folder
 [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
+cd ${GIF_PATH}
 if [ "${GIF_UPDATE}" = "yes" ]; then
-  cd ${GIF_PATH}
   wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
 else
   wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
