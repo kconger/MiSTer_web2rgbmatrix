@@ -49,7 +49,7 @@ GIFs must be 128x32px and the file names must match the core name exactly, ie. M
 
 **Assembly**
 
-Wiring should look like the following and the enclosure is up to you.  I used some 1x3" red oak, 330x90x3mm [matte diffusing acrylic](https://www.tapplastics.com/product/plastics/cut_to_size_plastic/black_led_sheet/668) and some 3D printed parts I designed..
+Wiring should look like the following and the enclosure is up to you. Details on the enclosure can be found [here](docs/Enclosure.md).
 ![matrix_rear_open](docs/images/matrix-rear-open.jpg "matrix_rear_open")
 ![matrix_off](docs/images/matrix-off.jpg "matrix_off")
 ![matrix_rear](docs/images/matrix-rear.jpg "matrix_rear")
