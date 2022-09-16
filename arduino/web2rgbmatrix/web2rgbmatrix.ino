@@ -558,7 +558,7 @@ void handleSD() {
         "$('#back-button').prop('disabled', false);"
         "var inputFile = $('form').find(\"input[type=file]\");"
         "var fileName = inputFile[0].files[0].name;"
-        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName +'\"><img src=\"" + String(gif_folder) + "' + fileName.charAt(0) + '/' + fileName + '\"></a>');"
+        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName.split(\".\")[0] +'\"><img src=\"" + String(gif_folder) + "' + fileName.charAt(0) + '/' + fileName + '\"></a>');"
         "}"
         "$('#bar').css('width',Math.round(per*100) + '%');"
         "}"
