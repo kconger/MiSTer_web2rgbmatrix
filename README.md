@@ -14,6 +14,7 @@ Current features
 - Web: Wifi Configuration 
 - Web: GIF uploads to SD Card
 - Web: OTA updates
+- FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
 - Serial: [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) service support, requires GIFs installed on rgbmatrix SD Card. Set USBMODE="no"
 
 Requirements
