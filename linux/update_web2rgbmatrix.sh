@@ -28,7 +28,7 @@ SCRIPTNAME="/tmp/update_web2rgbmatrix_script.sh"
 NODEBUG="-q -o /dev/null"
 
 echo -e "\n +---------------+";
-echo -e " | ${fyellow}web2${fred}r${fgreen}g${fblue}b${fyellow}matrix${freset} |---[]";
+echo -e " | ${fyellow}web2${fred}r${fgreen}g${fblue}b${fyellow}matrix${freset} |";
 echo -e " +---------------+\n";
 
 check4error() {

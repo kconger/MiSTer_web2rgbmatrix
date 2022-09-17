@@ -39,7 +39,7 @@ char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
 
-#define VERSION 1.0
+#define VERSION 1.2
 
 // SD Card reader pins
 // ESP32-Trinity Pins
@@ -794,9 +794,10 @@ void checkSerialClient() {
       LittleFS.remove(gif_filename);
       client_ip = {0,0,0,0};
       if (card_mounted) {
-        if (SD.exists(String(gif_folder) + new_command + ".gif")) {
-          sd_filename = String(gif_folder) + new_command + ".gif";
-          showGIF(sd_filename.c_str(), true);
+        String fullpath = String(gif_folder) + new_command.charAt(0) + "/" + new_command + ".gif";
+        const char *requested_filename = fullpath.c_str();
+        if (SD.exists(requested_filename)) {
+          showGIF(requested_filename, true);
         } else {
           showTextLine(new_command);
         }
