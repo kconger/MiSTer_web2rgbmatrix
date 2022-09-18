@@ -1,14 +1,30 @@
+/*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+* You can download the latest version of this code from:
+* https://github.com/kconger/MiSTer_web2rgbmatrix
+*/
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
 #include <AnimatedGIF.h>
 #include <ArduinoJson.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#include <ESP32FtpServer.h>
 #include <ESP32Ping.h>
 #include <ESPmDNS.h>
 #include <LittleFS.h>
 #include <Update.h>
-#include <SimpleFTPServer.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -37,9 +53,12 @@ int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 #define DEFAULT_SD_GIF_FOLDER "/gifs/"
 char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
 
+#define DEFAULT_SD_ANIMATED_GIF_FOLDER "/agifs/"
+char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
+
 #define DBG_OUTPUT_PORT Serial
 
-#define VERSION 1.2
+#define VERSION 1.3
 
 // SD Card reader pins
 // ESP32-Trinity Pins
@@ -165,7 +184,7 @@ void setup(void) {
       uint64_t cardSize = SD.cardSize() / (1024 * 1024);
       DBG_OUTPUT_PORT.printf("SD Card Size: %lluMB\n", cardSize);
       sd_status = String(cardSize) + "MB";
-      ftp_server.begin(ap, ap_password); 
+      ftp_server.begin(SD, ap, ap_password); 
     }
   } else {
     DBG_OUTPUT_PORT.println("Card Mount Failed");
@@ -643,13 +662,25 @@ void handleLocalPlay(){
   if (server.method() == HTTP_GET) {
     if (card_mounted){
       if (server.arg("file") != "") {
+        // Check for and play animated GIF
+        String agif_fullpath = String(animated_gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
+        const char *agif_requested_filename = agif_fullpath.c_str();
+        if (SD.exists(agif_requested_filename)) {
+          returnHTML("Displaying local animated GIF");
+          LittleFS.remove(gif_filename);
+          tty_client = false;
+          sd_filename = agif_fullpath;
+          client_ip = server.client().remoteIP();
+          showGIF(agif_requested_filename, true);
+        }
+        // Check for and play static GIF
         String fullpath = String(gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
           returnHTTPError(404, "File Not Found");
           showTextLine(server.arg("file"));
         } else {
-          returnHTML("Displaying local file");
+          returnHTML("Displaying local GIF");
           LittleFS.remove(gif_filename);
           tty_client = false;
           sd_filename = fullpath;
@@ -794,9 +825,18 @@ void checkSerialClient() {
       LittleFS.remove(gif_filename);
       client_ip = {0,0,0,0};
       if (card_mounted) {
+        // Check for and play animated GIF
+        String agif_fullpath = String(animated_gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
+        const char *agif_requested_filename = agif_fullpath.c_str();
+        if (SD.exists(agif_requested_filename)) {
+          sd_filename = agif_fullpath;
+          showGIF(agif_requested_filename, true);
+        }
+        // Check for and play static GIF
         String fullpath = String(gif_folder) + new_command.charAt(0) + "/" + new_command + ".gif";
         const char *requested_filename = fullpath.c_str();
         if (SD.exists(requested_filename)) {
+          sd_filename = fullpath;
           showGIF(requested_filename, true);
         } else {
           showTextLine(new_command);

@@ -1,5 +1,5 @@
 # web2rgbmatrix
-[MiSTer_web2rgbmatrix](https://github.com/kconger/MiSTer_web2rgbmatrix) is an hardware and software addon for the [MiSTer FPGA](https://github.com/MiSTer-devel) that displays an animated or static GIF logo of the current running [MiSTer FPGA](https://github.com/MiSTer-devel) core on an RGB LED Matrix.
+[MiSTer_web2rgbmatrix](https://github.com/kconger/MiSTer_web2rgbmatrix) is a hardware and software addon for the [MiSTer FPGA](https://github.com/MiSTer-devel) that displays an animated or static GIF logo of the current running [MiSTer FPGA](https://github.com/MiSTer-devel) core on an RGB LED Matrix.
 
 ![matrix_on](docs/images/matrix-on.jpg "matrix_on")
 
@@ -7,6 +7,7 @@ Current features
 -------
 - Display active MiSTer Core logo, or text if not available.
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
+- Plays animated GIF then displays the static GIF if available
 - Turns off the display if requesting client is off for 1 minute
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
@@ -29,13 +30,8 @@ Hardware
 Software
 - Arduino IDE
 - ESP32 Board Support Package
-- Library Dependencies: AnimatedGIF, ArduinoJson, ESP32-HUB75-MatrixPanel-I2S, ESP32Ping, SimpleFTPServer
+- Library Dependencies: AnimatedGIF, ArduinoJson, ESP32-HUB75-MatrixPanel-I2S, [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), ESP32Ping
 
-The SimpleFTPServer libraries FtpServerKey.h needs the following defined changed to 'STORAGE_SD'
-
-```
-#define DEFAULT_STORAGE_TYPE_ESP32		STORAGE_SD
-```
 
 Install
 -------
@@ -45,12 +41,11 @@ Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using anothe
 
 **rgbmatrix SD Card Setup**
 
-Format an SD card as FAT and copy the "gifs" folder to its root.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) project has a nice set of animated GIFs you can use as well.
-GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif
+Format an SD card as FAT and copy the "gifs" folder to its root.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [the pixelcade art repo](https://github.com/alinke/pixelcade) projects have some nice animated GIFs you can use as well.  Animated GIFs can be organized separately in a folder called "agifs" at the root of the SD card using the same organization structure seen in the "gifs" folder. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif
 
 **Assembly**
 
-Wiring should look like the following and the enclosure is up to you. Details on the enclosure can be found [here](docs/Enclosure.md).
+The wiring should look like the following and the enclosure is up to you. Details on my enclosure can be found [here](docs/Enclosure.md).
 ![matrix_rear_open](docs/images/matrix-rear-open.jpg "matrix_rear_open")
 ![matrix_off](docs/images/matrix-off.jpg "matrix_off")
 ![matrix_rear](docs/images/matrix-rear.jpg "matrix_rear")
@@ -67,7 +62,7 @@ You'll want to create a DHCP reservation on your DHCP server so that your IP doe
 
 Copy linux/update_web2rgbmatrix.sh to your MiSTer Scripts folder. ie. /media/fat/Scripts/
 
-Run "update_web2rgbmatrix.sh" on your MiSTer.  This can be done from the console, ssh or TV.
+Run "update_web2rgbmatrix.sh" on your MiSTer.  This can be done from the console, ssh, or TV.
 
 Modify your "/media/fat/web2rgbmatrix/web2rgbmatrix-user.ini" to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
 
@@ -77,7 +72,7 @@ After configuring your MiSTer and rgbmatrix, reboot both of them and test by cha
 
 OTA Updates
 -------
-To build a OTA update file, use "Sketch"-->"Export Compiled Binary" menu option in the Arduino IDE.  The resulting "web2rgbmatrix.ino.bin" file will be under the build folder within the project folder.
+To build an OTA update file, use the "Sketch"-->"Export Compiled Binary" menu option in the Arduino IDE.  The resulting "web2rgbmatrix.ino.bin" file will be under the build folder within the project folder.
 
 ![matrix_ota_file_build](docs/images/matrix-ota-file-build.jpg "matrix_ota_file_build")
 
@@ -88,4 +83,4 @@ Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [
 
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
-Most GIFS sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade)
+Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade)
