@@ -165,4 +165,4 @@ Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [
 
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
-Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
+Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
