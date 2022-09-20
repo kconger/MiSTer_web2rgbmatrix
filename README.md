@@ -28,9 +28,9 @@ Hardware
 - 5V Power Supply, the one that came with the DE10-Nano works great
 
 Software
-- Arduino IDE
+- [Arduino IDE 2.0+](https://www.arduino.cc/en/software)
 - ESP32 Board Support Package
-- Library Dependencies: AnimatedGIF, ArduinoJson, ESP32-HUB75-MatrixPanel-I2S, [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), ESP32Ping
+- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping)
 
 
 Install
@@ -41,9 +41,9 @@ Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using anothe
 
 **rgbmatrix SD Card Setup**
 
-Format an SD card as FAT and copy the "gifs" folder to its root.  The [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [the pixelcade art repo](https://github.com/alinke/pixelcade) projects have some nice animated GIFs you can use as well.  Animated GIFs can be organized separately in a folder called "agifs" at the root of the SD card using the same organization structure seen in the "gifs" folder. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif. 
+Format an SD card as FAT and copy the "gifs" and "agifs" folders to its root.  The "agifs" folder contains animated GIFs while the "gifs" folder contains the static GIFs. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif. For animated GIFs its best for the last frame be the Core logo.
 
-SD card folder structure shown below:
+Example SD card folder structure:
 
 ```
 .
@@ -165,4 +165,4 @@ Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [
 
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
-Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade)
+Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
