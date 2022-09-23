@@ -45,9 +45,9 @@ char ap_password[80] = DEFAULT_PASSWORD;
 char hostname[80] = DEFAULT_HOSTNAME;
 
 #define DEFAULT_BRIGHTNESS 255
-const uint8_t brightness = DEFAULT_BRIGHTNESS;
+uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_PING_FAIL_COUNT 6 // Set to '0' to disable client ping check
+#define DEFAULT_PING_FAIL_COUNT 2 // Set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 
 #define DEFAULT_SD_GIF_FOLDER "/gifs/"
@@ -58,7 +58,7 @@ char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
 
-#define VERSION 1.3
+#define VERSION 1.4
 
 // SD Card reader pins
 // ESP32-Trinity Pins
@@ -98,10 +98,11 @@ String style =
   ".otabtn{background:#218838;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
   ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
   "input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
+  "table{width: 100%;}"
   "</style>";
 
 String homepage = "https://github.com/kconger/MiSTer_web2rgbmatrix";
-const char *secrets_filename = "/secrets.json";
+const char *config_filename = "/secrets.json";
 const char *gif_filename = "/temp.gif";
 
 String wifi_mode = "AP";
@@ -129,6 +130,9 @@ void setup(void) {
   }
   LittleFS.remove(gif_filename);
 
+  //Read Config
+  parseConfig();
+
   // Initialize gif object
   gif.begin(LITTLE_ENDIAN_PIXELS);
 
@@ -136,7 +140,6 @@ void setup(void) {
   displaySetup();
 
   // Initialize Wifi
-  parseSecrets();
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   DBG_OUTPUT_PORT.print("Connecting to ");DBG_OUTPUT_PORT.println(ssid);
@@ -203,6 +206,7 @@ void setup(void) {
 
   // Startup Webserver
   server.on("/", handleRoot);
+  server.on("/settings", handleSettings);
   server.on("/ota", handleOTA);
   server.on("/update", HTTP_POST, [](){
     server.sendHeader("Connection", "close");
@@ -244,32 +248,19 @@ void loop(void) {
   // Check if client who requested core image has gone away, if so clear screen
   if(client_ip != no_ip){
     if (ping_fail_count != 0){
-      if (ping_fail == 0){
+      if (ping_fail < ping_fail_count){
         if (millis() - last_seen >= 30*1000UL){
           last_seen = millis();
           bool success = Ping.ping(client_ip, 1);
           if(!success){
-            DBG_OUTPUT_PORT.println("Initial Ping failed");
+            DBG_OUTPUT_PORT.println("Ping failed");
             ping_fail = ping_fail + 1;
           } else {
             DBG_OUTPUT_PORT.println("Ping success");
             ping_fail = 0;
           }
         }
-      } else if (ping_fail >= 1 && ping_fail < ping_fail_count){ // Increase ping frequecy after first failure
-        if (millis() - last_seen >= 10*1000UL){
-          last_seen = millis();
-          bool success = Ping.ping(client_ip, 1);
-          if(!success){
-            DBG_OUTPUT_PORT.print("Ping fail count: ");
-            ping_fail = ping_fail + 1;
-            DBG_OUTPUT_PORT.println(ping_fail);
-          } else {
-            DBG_OUTPUT_PORT.println("Ping success");
-            ping_fail = 0;
-          }
-        }
-      } else if (ping_fail >= ping_fail_count){
+      } else {
         // Client gone clear display
         DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
         dma_display->clearScreen();
@@ -281,17 +272,17 @@ void loop(void) {
   }
 } /* loop() */
 
-bool parseSecrets() {
+bool parseConfig() {
   // Open file for parsing
-  File secretsFile = LittleFS.open(secrets_filename);
-  if (!secretsFile) {
+  File config_file = LittleFS.open(config_filename);
+  if (!config_file) {
     DBG_OUTPUT_PORT.println("ERROR: Could not open secrets.json file for reading!");
     return false;
   }
 
   // Check if we can deserialize the secrets.json file
   StaticJsonDocument<200> doc;
-  DeserializationError err = deserializeJson(doc, secretsFile);
+  DeserializationError err = deserializeJson(doc, config_file);
   if (err) {
     DBG_OUTPUT_PORT.println("ERROR: deserializeJson() failed with code ");
     DBG_OUTPUT_PORT.println(err.c_str());
@@ -302,11 +293,13 @@ bool parseSecrets() {
   // Read settings from secrets.json file
   strlcpy(ssid, doc["ssid"] | DEFAULT_SSID, sizeof(ssid));
   strlcpy(password, doc["password"] | DEFAULT_PASSWORD, sizeof(password));
+  ping_fail_count = doc["timeout"] | DEFAULT_PING_FAIL_COUNT;
+  brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
        
   // Close the secrets.json file
-  secretsFile.close();
+  config_file.close();
   return true;
-} /* parseSecrets() */
+} /* parseConfig() */
 
 void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info){
   DBG_OUTPUT_PORT.println("Connected to AP successfully!");
@@ -335,23 +328,89 @@ void returnHTTPError(int code, String msg) {
 } /* returnHTTPError() */
 
 void handleRoot() {
-  String gif_button = "";
-  if(card_mounted){
-    gif_button = "<input type=\"button\" class=btn onclick=\"location.href='/sdcard';\" value=\"GIF Upload\" />";
+  if (server.method() == HTTP_GET) {
+    String gif_button = "";
+    if(card_mounted){
+      gif_button = "<input type=\"button\" class=btn onclick=\"location.href='/sdcard';\" value=\"GIF Upload\" />";
+    }
+    String image_status = "";
+    if (LittleFS.exists(gif_filename)){
+      image_status = "<tr>"
+       "<td>Client</td>"
+       "<td>" + client_ip.toString() + "</td>"
+       "</tr>"
+       "<tr>"
+       "<td>Current Image</td>"
+       "<td><img src=\"" + String(gif_filename) + "\"><img></td>"
+       "</tr>";
+    } else if (sd_filename != ""){
+      image_status = "<tr>"
+       "<td>Client</td>"
+       "<td>" + ((tty_client) ? "Serial" : client_ip.toString()) + "</td>"
+       "</tr>"
+       "<tr>"
+       "<td>Current Image</td>"
+       "<td><img src=\"" + String(sd_filename) + "\"><img></td>"
+       "</tr>";
+    }
+    String html =
+      "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+      "<head>"
+      "<title>web2rgbmatrix</title>"
+      + style +
+      "</head>"
+      "<body>"
+      "<form action=\"/\">"
+      "<a href=\""+ homepage + "\"><h1>web2rgbmatrix</h1></a><br>"
+      "<p>"
+      "<h3>Status</h3>"
+      "<table>"
+      "<tr>"
+      "<td>Version</td>"
+      "<td>" + String(VERSION) + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>SD Card</td>"
+      "<td>" + sd_status + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>Wifi Mode</td>"
+      "<td>" + wifi_mode + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>rgbmatrix IP</td>"
+      "<td>" + my_ip.toString() + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>Brightness</td>"
+      "<td>" + brightness + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>Timeout</td>"
+      "<td>" + (ping_fail_count / 2) + " minutes</td>"
+      "</tr>"
+      + image_status + 
+      "</table>"
+      "</p>"
+      "<input type=\"button\" class=btn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
+      + gif_button +
+      "<input type=\"button\" class=btn onclick=\"location.href='/settings';\" value=\"Settings\" />"
+      "<input type=\"button\" class=otabtn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
+      "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
+      "</form>"
+      "</body>"
+      "</html>";
+    returnHTML(html);
+  } else {
+    returnHTTPError(405, "Method Not Allowed");
   }
-  String image_status = "";
-  if (LittleFS.exists(gif_filename)){
-    image_status = "Client: " + client_ip.toString() + "<br><br>" +
-    "Current Image<br><img src=\"" + String(gif_filename) + "\"><img><br>";
-  } else if (sd_filename != ""){
-    image_status = "Client: " + ((tty_client) ? "Serial" : client_ip.toString()) + "<br><br>" +
-    "Current Image<br><img src=\"" + sd_filename + "\"><img><br>";
-  }
+} /* handleRoot() */
+
+void handleSettings() {
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
     "<head>"
-    "<title>web2rgbmatrix</title>"
-    "<meta http-equiv=\"refresh\" content=\"30\">"
+    "<title>web2rgbmatrix - Settings</title>"
     "<script>"
     "function myFunction() {"
     "var x = document.getElementById(\"idPassword\")\;"
@@ -365,17 +424,10 @@ void handleRoot() {
     + style +
     "</head>"
     "<body>"
-    "<form action=\"/\">"
-    "<a href=\""+ homepage + "\"><h1>web2rgbmatrix</h1></a><br>"
+    "<form action=\"/settings\">"
+    "<h1>Settings</h1>"
     "<p>"
-    "<b>Status</b><br>"
-    "Version: " + String(VERSION) + "<br>"
-    "SD Card: " + sd_status + "<br>"
-    "Wifi Mode: " + wifi_mode + "<br>"
-    "rgbmatrix IP: " + my_ip.toString() + "<br>"
-    + image_status + "<br>"
-    "<p>"
-    "<b>Wifi Client Settings</b><br>"
+    "<h3>Wifi Client Settings</h3>"
     "SSID<br>"
     "<input type=\"text\" name=\"ssid\" value=\"" + String(ssid) + "\"><br>"
     "Password<br>"
@@ -385,29 +437,44 @@ void handleRoot() {
     "<input type=\"checkbox\"id=\"showpass\" onclick=\"myFunction()\">"
     " Show Password</label>"
     "</div>"
+    "</p>"
+    "<p>"
+    "<h3>Display Settings</h3>"
+    "<label for=\"brightness\">LED Brightness</label>"
+    "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
+    "<label for=\"timeout\">Client Timeout(Minutes)</label>"
+    "<input type=\"number\" id=\"timeout\" name=\"timeout\" min=\"0\" max=\"60\" value=" + (ping_fail_count / 2) + ">"
+    "</p>"
     "<input type=\"submit\" class=btn value=\"Save\"><br>"
-    "</form>"
-    "<form>"
-    "<input type=\"button\" class=btn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
-    + gif_button +
-    "<input type=\"button\" class=otabtn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
-    "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
+    "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
     "</form>"
     "</body>"
     "</html>";
   if (server.method() == HTTP_GET) {
-    if (server.arg("ssid") != "" && server.arg("password") != "") {
+    if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "") {
       server.arg("ssid").toCharArray(ssid, sizeof(ssid));
       server.arg("password").toCharArray(password, sizeof(password));
+      if (server.arg("timeout") == "0"){
+        ping_fail_count = 0;
+      } else {
+        ping_fail_count = (server.arg("timeout").toInt() * 2);
+      }
+      if (server.arg("brightness") == "0"){
+        brightness = 0;
+      } else {
+        brightness = (server.arg("brightness").toInt());
+      }
       // Write secrets.json
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
-      File data_file = LittleFS.open(secrets_filename, FILE_WRITE);
-      if (!data_file) {
+      doc["timeout"] = (server.arg("timeout").toInt() * 2);
+      doc["brightness"] = server.arg("brightness");
+      File config_file = LittleFS.open(config_filename, FILE_WRITE);
+      if (!config_file) {
         returnHTTPError(500, "Failed to open config file for writing");
       }
-      serializeJson(doc, data_file);
+      serializeJson(doc, config_file);
       html =
         "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
         "<head>"
@@ -418,15 +485,16 @@ void handleRoot() {
         "<body>"
         "<form>"
         "<p>Config Saved</p>"
+        "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
         "</form>"
         "</body>"
         "</html>";
     }
     returnHTML(html);
   } else {
-    returnHTTPError(405, "SD Card Not Mounted");
+    returnHTTPError(405, "Method Not Allowed");
   }
-} /* handleRoot() */
+} /* handleSettings() */
 
 void handleOTA(){
   if (server.method() == HTTP_GET) {
@@ -494,7 +562,7 @@ void handleOTA(){
       "</html>";
     returnHTML(html);
   } else {
-    returnHTTPError(405, "SD Card Not Mounted");
+    returnHTTPError(405, "Method Not Allowed");
   }
 } /* handleOTA() */
 
@@ -542,6 +610,11 @@ void handleSD() {
         "<h1>GIF Upload</h1>"
         "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
         "<label id='file-input' for='file'>   Choose file...</label>"
+        "<div>"
+        "<label for=\"animated\" class=\"chkboxlabel\">"
+        "<input type=\"checkbox\" name=\"animated\" id=\"animated\">"
+        " Animated GIF</label>"
+        "</div>"        
         "<input id='sub-button' type='submit' class=btn value='Upload'>"
         "<br><br>"
         "<div id='prg'></div>"
@@ -549,20 +622,24 @@ void handleSD() {
         "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
         "</form>"
         "<script>"
-        "function sub(obj){"
+        "function sub(obj){"        
         "var fileName = obj.value.split('\\\\');"
         "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
         "};"
         "$('form').submit(function(e){"
         "e.preventDefault();"
+        "url = '/upload';"
+        "if (document.getElementById('animated').checked) {"
+        "url = '/upload?animated=true';"
+        "}"
         "var form = $('#upload_form')[0];"
         "var data = new FormData(form);"
         "$.ajax({"
-        "url: '/upload',"
+        "url: url,"
         "type: 'POST',"
         "data: data,"
         "contentType: false,"
-        "processData:false,"
+        "processData: false,"
         "xhr: function() {"
         "var xhr = new window.XMLHttpRequest();"
         "xhr.upload.addEventListener('progress', function(evt) {"
@@ -599,7 +676,7 @@ void handleSD() {
       returnHTTPError(500, "SD Card Not Mounted");
     }
   } else {
-    returnHTTPError(405, "SD Card Not Mounted");
+    returnHTTPError(405, "Method Not Allowed");
   }
 } /* handleSD() */
 
@@ -608,7 +685,11 @@ void handleUpload() {
     HTTPUpload& uploadfile = server.upload();
     if(uploadfile.status == UPLOAD_FILE_START) {
       String filename = String(uploadfile.filename);
-      if(!filename.startsWith("/")) filename = String(gif_folder) + filename.charAt(0) + "/" + String(uploadfile.filename);
+      String folder = String(gif_folder);
+      if (server.arg("animated") != ""){
+        folder = String(animated_gif_folder);
+      }
+      if(!filename.startsWith("/")) filename = folder + filename.charAt(0) + "/" + String(uploadfile.filename);
       SD.remove(filename);
       upload_file = SD.open(filename, FILE_WRITE);
       filename = String();
@@ -662,15 +743,30 @@ void handleLocalPlay(){
   if (server.method() == HTTP_GET) {
     if (card_mounted){
       if (server.arg("file") != "") {
+        String start_html =
+          "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+          "<head>"
+          "<title>Local Play</title>"
+          + style +
+          "</head>"
+          "<body>"
+          "<form>"
+          "<p>";
+        String end_html =
+          "</p>"
+           "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+          "</form>"
+          "</body>"
+          "</html>";
+        client_ip = server.client().remoteIP();
+        tty_client = false;
+        LittleFS.remove(gif_filename);
         // Check for and play animated GIF
         String agif_fullpath = String(animated_gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
         const char *agif_requested_filename = agif_fullpath.c_str();
         if (SD.exists(agif_requested_filename)) {
-          returnHTML("Displaying local animated GIF");
-          LittleFS.remove(gif_filename);
-          tty_client = false;
+          returnHTML(start_html + "Displaying Animated GIF: " + agif_fullpath + end_html);
           sd_filename = agif_fullpath;
-          client_ip = server.client().remoteIP();
           showGIF(agif_requested_filename, true);
         }
         // Check for and play static GIF
@@ -680,11 +776,8 @@ void handleLocalPlay(){
           returnHTTPError(404, "File Not Found");
           showTextLine(server.arg("file"));
         } else {
-          returnHTML("Displaying local GIF");
-          LittleFS.remove(gif_filename);
-          tty_client = false;
+          returnHTML(start_html + "Displaying GIF: " + fullpath + end_html);
           sd_filename = fullpath;
-          client_ip = server.client().remoteIP();
           showGIF(requested_filename, true);
         } 
       } else {

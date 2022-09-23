@@ -11,8 +11,8 @@ Current features
 - Turns off the display if requesting client is off for 1 minute
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
-- Web: Status display of Wifi, SD Card, loaded GIF, and connected client
-- Web: Wifi Configuration 
+- Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
+- Web: Settings for Wifi, brightness and client timeout 
 - Web: GIF uploads to SD Card
 - Web: OTA updates
 - FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
@@ -165,4 +165,4 @@ Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [
 
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
-Most GIFS are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
+Most GIFs are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
