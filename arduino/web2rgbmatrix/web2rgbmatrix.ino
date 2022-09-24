@@ -29,6 +29,8 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
+#define VERSION 1.5
+
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
 
@@ -57,8 +59,6 @@ char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
 char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
-
-#define VERSION 1.4
 
 // SD Card reader pins
 // ESP32-Trinity Pins
@@ -216,6 +216,7 @@ void setup(void) {
   }, handleUpdate);
   server.on("/sdcard", handleSD);
   server.on("/upload", HTTP_POST, [](){server.sendHeader("Connection", "close");}, handleUpload);
+  server.on("/sdplay", handleSDPlay);
   server.on("/localplay", handleLocalPlay);
   server.on("/remoteplay", HTTP_POST, [](){server.send(200);}, handleRemotePlay);
   server.on("/text", handleText);
@@ -237,39 +238,15 @@ void setup(void) {
 } /* setup() */
 
 void loop(void) {
-  server.handleClient();
-  ftp_server.handleFTP();
-  checkSerialClient();
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
     dma_display->clearScreen();
   }
-  // Check if client who requested core image has gone away, if so clear screen
-  if(client_ip != no_ip){
-    if (ping_fail_count != 0){
-      if (ping_fail < ping_fail_count){
-        if (millis() - last_seen >= 30*1000UL){
-          last_seen = millis();
-          bool success = Ping.ping(client_ip, 1);
-          if(!success){
-            DBG_OUTPUT_PORT.println("Ping failed");
-            ping_fail = ping_fail + 1;
-          } else {
-            DBG_OUTPUT_PORT.println("Ping success");
-            ping_fail = 0;
-          }
-        }
-      } else {
-        // Client gone clear display
-        DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
-        dma_display->clearScreen();
-        client_ip = {0,0,0,0};
-        LittleFS.remove(gif_filename);
-        sd_filename = "";
-      }
-    }
-  }
+  server.handleClient();  // Handle Web Client
+  ftp_server.handleFTP(); // Handle FTP Client
+  checkSerialClient();    // tty2xx Client Check
+  checkIPClient();        // Client Timeout Check 
 } /* loop() */
 
 bool parseConfig() {
@@ -286,7 +263,6 @@ bool parseConfig() {
   if (err) {
     DBG_OUTPUT_PORT.println("ERROR: deserializeJson() failed with code ");
     DBG_OUTPUT_PORT.println(err.c_str());
-
     return false;
   }
 
@@ -654,7 +630,11 @@ void handleSD() {
         "$('#back-button').prop('disabled', false);"
         "var inputFile = $('form').find(\"input[type=file]\");"
         "var fileName = inputFile[0].files[0].name;"
-        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/localplay?file=' + fileName.split(\".\")[0] +'\"><img src=\"" + String(gif_folder) + "' + fileName.charAt(0) + '/' + fileName + '\"></a>');"
+        "var folder = " + String(gif_folder) + ";"
+        "if (document.getElementById('animated').checked) {"
+        "folder = " + String(animated_gif_folder) + ";"
+        "}"
+        "$('#prg').html('Upload Success, click GIF to play<br><a href=\"/sdplay?file=' + folder + fileName.charAt(0).toUpperCase() + '/' + fileName +'\"><img src=\"' + folder + fileName.charAt(0) + '/' + fileName + '\"></a>');"
         "}"
         "$('#bar').css('width',Math.round(per*100) + '%');"
         "}"
@@ -689,7 +669,9 @@ void handleUpload() {
       if (server.arg("animated") != ""){
         folder = String(animated_gif_folder);
       }
-      if(!filename.startsWith("/")) filename = folder + filename.charAt(0) + "/" + String(uploadfile.filename);
+      String letter_folder(filename.charAt(0));
+      letter_folder.toUpperCase();
+      if(!filename.startsWith("/")) filename = folder + String(letter_folder) + "/" + String(uploadfile.filename);
       SD.remove(filename);
       upload_file = SD.open(filename, FILE_WRITE);
       filename = String();
@@ -761,8 +743,10 @@ void handleLocalPlay(){
         client_ip = server.client().remoteIP();
         tty_client = false;
         LittleFS.remove(gif_filename);
+        String letter_folder(server.arg("file").charAt(0));
+        letter_folder.toUpperCase();
         // Check for and play animated GIF
-        String agif_fullpath = String(animated_gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
+        String agif_fullpath = String(animated_gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
         const char *agif_requested_filename = agif_fullpath.c_str();
         if (SD.exists(agif_requested_filename)) {
           returnHTML(start_html + "Displaying Animated GIF: " + agif_fullpath + end_html);
@@ -770,7 +754,7 @@ void handleLocalPlay(){
           showGIF(agif_requested_filename, true);
         }
         // Check for and play static GIF
-        String fullpath = String(gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
+        String fullpath = String(gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
           returnHTTPError(404, "File Not Found");
@@ -790,6 +774,50 @@ void handleLocalPlay(){
     returnHTTPError(405, "Method Not Allowed");
   }
 } /* handleLocalPlay() */
+
+void handleSDPlay(){
+  // To play a GIF from SD card with curl
+  // curl http://rgbmatrix.local/sdplay?file=/gifs/M/MENU.gif
+  if (server.method() == HTTP_GET) {
+    if (card_mounted){
+      if (server.arg("file") != "") {
+        String start_html =
+          "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+          "<head>"
+          "<title>SD Play</title>"
+          + style +
+          "</head>"
+          "<body>"
+          "<form>"
+          "<p>";
+        String end_html =
+          "</p>"
+           "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+          "</form>"
+          "</body>"
+          "</html>";
+        client_ip = server.client().remoteIP();
+        tty_client = false;
+        LittleFS.remove(gif_filename);
+        // Check for and play animated GIF
+        const char *requested_filename = server.arg("file").c_str();
+        if (SD.exists(requested_filename)) {
+          returnHTML(start_html + "Displaying SD File: " + server.arg("file") + end_html);
+          sd_filename = server.arg("file");
+          showGIF(requested_filename, true);
+        } else {
+          returnHTTPError(404, "File Not Found: " + server.arg("file"));
+        }
+      } else {
+        returnHTTPError(405, "Method Not Allowed");
+      }
+    } else {
+      returnHTTPError(500, "SD Card Not Mounted");
+    }
+  } else {
+    returnHTTPError(405, "Method Not Allowed");
+  }
+} /* handleSDPlay() */
 
 void handleText(){
   if (server.method() == HTTP_GET) {
@@ -900,6 +928,34 @@ void handleNotFound() {
 
   data_file.close();
 } /* handleNotFound() */
+
+void checkIPClient() {
+  // Check if client who requested core image has gone away, if so clear screen
+  if(client_ip != no_ip){
+    if (ping_fail_count != 0){
+      if (ping_fail < ping_fail_count){
+        if (millis() - last_seen >= 30*1000UL){
+          last_seen = millis();
+          bool success = Ping.ping(client_ip, 1);
+          if(!success){
+            DBG_OUTPUT_PORT.println("Ping failed");
+            ping_fail = ping_fail + 1;
+          } else {
+            DBG_OUTPUT_PORT.println("Ping success");
+            ping_fail = 0;
+          }
+        }
+      } else {
+        // Client gone clear display
+        DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
+        dma_display->clearScreen();
+        client_ip = {0,0,0,0};
+        LittleFS.remove(gif_filename);
+        sd_filename = "";
+      }
+    }
+  }
+} /* checkIPClient() */
 
 void checkSerialClient() {
   if (DBG_OUTPUT_PORT.available()) {

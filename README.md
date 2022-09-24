@@ -8,7 +8,7 @@ Current features
 - Display active MiSTer Core logo, or text if not available.
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Plays animated GIF then displays the static GIF if available
-- Turns off the display if requesting client is off for 1 minute
+- Turns off the display if requesting client is off after a user configurable threshold
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
@@ -17,6 +17,7 @@ Current features
 - Web: OTA updates
 - FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
 - Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card.
+- Serial: Debug output
 
 Requirements
 -------
