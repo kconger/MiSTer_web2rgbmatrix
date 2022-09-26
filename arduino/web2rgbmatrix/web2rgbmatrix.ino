@@ -29,7 +29,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#define VERSION 1.5
+#define VERSION "1.6"
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -46,10 +46,13 @@ char ap_password[80] = DEFAULT_PASSWORD;
 #define DEFAULT_HOSTNAME "rgbmatrix"
 char hostname[80] = DEFAULT_HOSTNAME;
 
+#define DEFAULT_TEXT_COLOR "#FFFFFF" // White
+String textcolor = DEFAULT_TEXT_COLOR;
+
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_PING_FAIL_COUNT 2 // Set to '0' to disable client ping check
+#define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 
 #define DEFAULT_SD_GIF_FOLDER "/gifs/"
@@ -245,7 +248,7 @@ void loop(void) {
   }
   server.handleClient();  // Handle Web Client
   ftp_server.handleFTP(); // Handle FTP Client
-  checkSerialClient();    // tty2xx Client Check
+  checkSerialClient();    // tty2x Client Check
   checkIPClient();        // Client Timeout Check 
 } /* loop() */
 
@@ -271,6 +274,7 @@ bool parseConfig() {
   strlcpy(password, doc["password"] | DEFAULT_PASSWORD, sizeof(password));
   ping_fail_count = doc["timeout"] | DEFAULT_PING_FAIL_COUNT;
   brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
+  textcolor = doc["textcolor"] | DEFAULT_TEXT_COLOR;
        
   // Close the secrets.json file
   config_file.close();
@@ -343,7 +347,7 @@ void handleRoot() {
       "<table>"
       "<tr>"
       "<td>Version</td>"
-      "<td>" + String(VERSION) + "</td>"
+      "<td>" + VERSION + "</td>"
       "</tr>"
       "<tr>"
       "<td>SD Card</td>"
@@ -356,6 +360,10 @@ void handleRoot() {
       "<tr>"
       "<td>rgbmatrix IP</td>"
       "<td>" + my_ip.toString() + "</td>"
+      "</tr>"
+      "<tr>"
+      "<td>Text Color</td>"
+      "<td style=\"background-color:" + textcolor + ";\"></td>"
       "</tr>"
       "<tr>"
       "<td>Brightness</td>"
@@ -416,6 +424,8 @@ void handleSettings() {
     "</p>"
     "<p>"
     "<h3>Display Settings</h3>"
+    "<label for=\"textcolor\">Text Color</label>"
+    "<input type=\"color\" id=\"textcolor\" name=\"textcolor\" value=\"" + textcolor + "\">"
     "<label for=\"brightness\">LED Brightness</label>"
     "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
     "<label for=\"timeout\">Client Timeout(Minutes)</label>"
@@ -427,7 +437,7 @@ void handleSettings() {
     "</body>"
     "</html>";
   if (server.method() == HTTP_GET) {
-    if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "") {
+    if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "" && server.arg("textcolor") != "") {
       server.arg("ssid").toCharArray(ssid, sizeof(ssid));
       server.arg("password").toCharArray(password, sizeof(password));
       if (server.arg("timeout") == "0"){
@@ -440,12 +450,15 @@ void handleSettings() {
       } else {
         brightness = (server.arg("brightness").toInt());
       }
+      textcolor = server.arg("textcolor");
+      textcolor.replace("%23", "#");
       // Write secrets.json
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
       doc["timeout"] = (server.arg("timeout").toInt() * 2);
-      doc["brightness"] = server.arg("brightness");
+      doc["brightness"] = server.arg("brightness").toInt();
+      doc["textcolor"] = textcolor;
       File config_file = LittleFS.open(config_filename, FILE_WRITE);
       if (!config_file) {
         returnHTTPError(500, "Failed to open config file for writing");
@@ -454,14 +467,14 @@ void handleSettings() {
       html =
         "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
         "<head>"
-        "<title>Config Saved</title>"
-        "<meta http-equiv=\"refresh\" content=\"3\;URL=\'/\'\" />"
+        "<title>Settings Saved</title>"
         + style +
         "</head>"
         "<body>"
         "<form>"
-        "<p>Config Saved</p>"
+        "<p>Settings saved, you must reboot for them to take effect.</p>"
         "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+        "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
         "</form>"
         "</body>"
         "</html>";
@@ -563,7 +576,7 @@ void handleUpdate(){
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
-      showTextLine("OTA Update Success\nRebooting...");
+      showTextLine("OTA Update Success");
     } else {
       Update.printError(DBG_OUTPUT_PORT);
       showTextLine("OTA Update Error");
@@ -736,7 +749,7 @@ void handleLocalPlay(){
           "<p>";
         String end_html =
           "</p>"
-           "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+          "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
           "</form>"
           "</body>"
           "</html>";
@@ -758,6 +771,7 @@ void handleLocalPlay(){
         const char *requested_filename = fullpath.c_str();
         if (!SD.exists(requested_filename)) {
           returnHTTPError(404, "File Not Found");
+          sd_filename = "";
           showTextLine(server.arg("file"));
         } else {
           returnHTML(start_html + "Displaying GIF: " + fullpath + end_html);
@@ -833,7 +847,7 @@ void handleText(){
 } /* handleText() */
 
 void handleVersion(){
-  returnHTML(String(VERSION));
+  returnHTML(VERSION);
 } /* handleVersion() */
 
 void handleClear(){
@@ -851,6 +865,7 @@ void handleClear(){
     "<body>"
     "<form>"
     "<p>Display Cleared</p>"
+    "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
     "</form>"
     "</body>"
     "</html>";
@@ -861,13 +876,14 @@ void handleReboot() {
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
     "<head>"
-      "<title>Rebooting...</title>"
-      "<meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />"
+    "<title>Rebooting...</title>"
+    "<meta http-equiv=\"refresh\" content=\"60\;URL=\'/\'\" />"
     + style +
     "</head>"
     "<body>"
     "<form>"
-      "<p>Rebooting...</p>"
+    "<p>Rebooting...</p>"
+    "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
     "</form>"
     "</body>"
     "</html>";
@@ -988,6 +1004,7 @@ void checkSerialClient() {
           sd_filename = fullpath;
           showGIF(requested_filename, true);
         } else {
+          sd_filename = "";
           showTextLine(new_command);
         }
       } else {
@@ -1020,16 +1037,43 @@ void displaySetup() {
 } /* displaySetup() */
 
 void showTextLine(String text){
+  int matrix_width = panelResX * panels_in_X_chain;
+  int matrix_heigth = panelResY;
+  int char_width = 6;
+  int char_heigth = 8;
+  int x = (matrix_width - (text.length() * char_width)) / 2;
+  int y = (matrix_heigth - char_heigth) / 2;
+
+  String hexcolor = textcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
   dma_display->clearScreen();
-  dma_display->setCursor(0, 0);
-  dma_display->println("\n" + text);
+  dma_display->setTextColor(dma_display->color565(r, g, b));
+  dma_display->setCursor(x, y);
+  dma_display->println(text);
 } /* showTextLine() */
 
 void showText(String text){
+  String hexcolor = textcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
   dma_display->clearScreen();
+  dma_display->setTextColor(dma_display->color565(r, g, b));
   dma_display->setCursor(0, 0);
   dma_display->println(text);
-} /* showTextLine() */
+} /* showText() */
 
 // Copy a horizontal span of pixels from a source buffer to an X,Y position
 // in matrix back buffer, applying horizontal clipping. Vertical clipping is
