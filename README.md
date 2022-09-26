@@ -12,7 +12,7 @@ Current features
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
-- Web: Settings for Wifi, brightness and client timeout 
+- Web: Settings for Wifi, matrix text color, matrix brightness and client timeout 
 - Web: GIF uploads to SD Card
 - Web: OTA updates
 - FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
