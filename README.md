@@ -8,11 +8,11 @@ Current features
 - Display active MiSTer Core logo, or text if not available.
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Plays animated GIF then displays the static GIF if available
-- Turns off the display if requesting client is off after a user configurable threshold
+- Displays a screen saver or blank screen if requesting client is off after a user-configurable threshold
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
-- Web: Settings for Wifi, matrix text color, matrix brightness, and client timeout 
+- Web: Settings for Wifi, matrix text color, matrix brightness, screen saver, and client timeout 
 - Web: GIF uploads to SD Card
 - Web: OTA updates
 - FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
@@ -31,7 +31,7 @@ Hardware
 Software
 - [Arduino IDE 2.0+](https://www.arduino.cc/en/software)
 - ESP32 Board Support Package
-- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping)
+- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping),[FastLED](https://github.com/FastLED/FastLED)
 
 
 Install
@@ -167,3 +167,5 @@ Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
 
 Most GIFs are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
+
+Plasma screen saver code from [here](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/blob/master/examples/2_PatternPlasma/2_PatternPlasma.ino).

@@ -23,13 +23,14 @@
 #include <ESP32FtpServer.h>
 #include <ESP32Ping.h>
 #include <ESPmDNS.h>
+#include <FastLED.h>
 #include <LittleFS.h>
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#define VERSION "1.6"
+#define VERSION "1.7"
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -52,6 +53,9 @@ String textcolor = DEFAULT_TEXT_COLOR;
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
+#define DEFAULT_SCREENSAVER "Blank" // Blank | Plasma
+String screensaver = DEFAULT_SCREENSAVER;
+
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 
@@ -63,8 +67,14 @@ char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial
 
+// Pins for a ESP32-Trinity
+// Matrix pins
+#define E 18
+#define B1 26
+#define B2 12
+#define G1 27
+#define G2 13
 // SD Card reader pins
-// ESP32-Trinity Pins
 #define SD_SCLK 33
 #define SD_MISO 32
 #define SD_MOSI 21
@@ -97,14 +107,16 @@ String style =
   "#file-input{padding:0;border:1px solid #ddd;line-height:44px;text-align:left;display:block;cursor:pointer}"
   "#bar,#prgbar{background-color:#f1f1f1;border-radius:10px}#bar{background-color:#3498db;width:0%;height:10px}"
   "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
-  ".btn{background:#3498db;color:#fff;cursor:pointer}.btn:disabled,.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
-  ".otabtn{background:#218838;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
-  ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}.btn.disabled {background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".btn{background:#3498db;color:#fff;cursor:pointer}.btn:disabled,.btn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".actionbtn{background:#218838;color:#fff;cursor:pointer}.actionbtn:disabled,.actionbtn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}.rebootbtn:disabled,.rebootbtn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
   "input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
-  "table{width: 100%;}"
+  "table{width: 100%;}select{width: 100%;height:44px;}"
   "</style>";
 
 String homepage = "https://github.com/kconger/MiSTer_web2rgbmatrix";
+String latest_url = "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master/releases/LATEST";
+String releases = homepage + "/tree/master/releases";
 const char *config_filename = "/secrets.json";
 const char *gif_filename = "/temp.gif";
 
@@ -120,6 +132,15 @@ File gif_file, upload_file;
 String new_command = "";
 String current_command = "";
 AnimatedGIF gif;
+
+// Plasma Screen Saver
+uint16_t time_counter = 0, cycles = 0;
+CRGB currentColor;
+CRGBPalette16 palettes[] = {HeatColors_p, LavaColors_p, RainbowColors_p, RainbowStripeColors_p, CloudColors_p};
+CRGBPalette16 currentPalette = palettes[0];
+CRGB ColorFromCurrentPalette(uint8_t index = 0, uint8_t brightness = 255, TBlendType blendType = LINEARBLEND) {
+  return ColorFromPalette(currentPalette, index, brightness, blendType);
+}
 
 void setup(void) {    
   DBG_OUTPUT_PORT.begin(115200);
@@ -249,7 +270,7 @@ void loop(void) {
   server.handleClient();  // Handle Web Client
   ftp_server.handleFTP(); // Handle FTP Client
   checkSerialClient();    // tty2x Client Check
-  checkIPClient();        // Client Timeout Check 
+  checkClientTimeout();   // Client Timeout Check
 } /* loop() */
 
 bool parseConfig() {
@@ -275,6 +296,7 @@ bool parseConfig() {
   ping_fail_count = doc["timeout"] | DEFAULT_PING_FAIL_COUNT;
   brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
   textcolor = doc["textcolor"] | DEFAULT_TEXT_COLOR;
+  screensaver = doc["screensaver"] | DEFAULT_SCREENSAVER;
        
   // Close the secrets.json file
   config_file.close();
@@ -345,41 +367,21 @@ void handleRoot() {
       "<p>"
       "<h3>Status</h3>"
       "<table>"
-      "<tr>"
-      "<td>Version</td>"
-      "<td>" + VERSION + "</td>"
-      "</tr>"
-      "<tr>"
-      "<td>SD Card</td>"
-      "<td>" + sd_status + "</td>"
-      "</tr>"
-      "<tr>"
-      "<td>Wifi Mode</td>"
-      "<td>" + wifi_mode + "</td>"
-      "</tr>"
-      "<tr>"
-      "<td>rgbmatrix IP</td>"
-      "<td>" + my_ip.toString() + "</td>"
-      "</tr>"
-      "<tr>"
-      "<td>Text Color</td>"
-      "<td style=\"background-color:" + textcolor + ";\"></td>"
-      "</tr>"
-      "<tr>"
-      "<td>Brightness</td>"
-      "<td>" + brightness + "</td>"
-      "</tr>"
-      "<tr>"
-      "<td>Timeout</td>"
-      "<td>" + (ping_fail_count / 2) + " minutes</td>"
-      "</tr>"
+      "<tr><td>Version</td><td>" + VERSION + "</td></tr>"
+      "<tr><td>SD Card</td><td>" + sd_status + "</td></tr>"
+      "<tr><td>Wifi Mode</td><td>" + wifi_mode + "</td></tr>"
+      "<tr><td>rgbmatrix IP</td><td>" + my_ip.toString() + "</td></tr>"
+      "<tr><td>Text Color</td><td style=\"background-color:" + textcolor + ";border:1px solid black;\"></td></tr>"
+      "<tr><td>Brightness</td><td>" + brightness + "</td></tr>"
+      "<tr><td>Screen Saver</td><td>" + screensaver + "</td></tr>"
+      "<tr><td>Client Timeout</td><td>" + (ping_fail_count / 2) + " minutes</td></tr>"
       + image_status + 
       "</table>"
       "</p>"
-      "<input type=\"button\" class=btn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
+      "<input type=\"button\" class=actionbtn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
       + gif_button +
       "<input type=\"button\" class=btn onclick=\"location.href='/settings';\" value=\"Settings\" />"
-      "<input type=\"button\" class=otabtn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
+      "<input type=\"button\" class=btn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
       "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
       "</form>"
       "</body>"
@@ -391,6 +393,17 @@ void handleRoot() {
 } /* handleRoot() */
 
 void handleSettings() {
+  String saver_select_items = "";
+  if (screensaver == "Blank"){
+    saver_select_items =  saver_select_items + "<option value=\"Blank\" selected>Blank</option>";
+  } else {
+    saver_select_items =  saver_select_items + "<option value=\"Blank\">Blank</option>";
+  }
+  if (screensaver == "Plasma"){
+    saver_select_items =  saver_select_items + "<option value=\"Plasma\" selected>Plasma</option>";
+  } else {
+    saver_select_items =  saver_select_items + "<option value=\"Plasma\">Plasma</option>";
+  }
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
     "<head>"
@@ -428,16 +441,24 @@ void handleSettings() {
     "<input type=\"color\" id=\"textcolor\" name=\"textcolor\" value=\"" + textcolor + "\">"
     "<label for=\"brightness\">LED Brightness</label>"
     "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
+    "<label for=\"screensaver\">Screen Saver</label><br>"
+    "<br>"
+    "<select id=\"screensaver\" name=\"screensaver\" value=\"" + screensaver + "\">"
+    + saver_select_items +
+    "</select>"
+    "<br><br>"
     "<label for=\"timeout\">Client Timeout(Minutes)</label>"
     "<input type=\"number\" id=\"timeout\" name=\"timeout\" min=\"0\" max=\"60\" value=" + (ping_fail_count / 2) + ">"
     "</p>"
-    "<input type=\"submit\" class=btn value=\"Save\"><br>"
+    "<input type=\"submit\" class=actionbtn value=\"Save\"><br>"
     "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
     "</form>"
     "</body>"
     "</html>";
   if (server.method() == HTTP_GET) {
-    if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "" && server.arg("textcolor") != "") {
+    if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "" 
+      && server.arg("textcolor") != "" && server.arg("screensaver") != "" ) {
+
       server.arg("ssid").toCharArray(ssid, sizeof(ssid));
       server.arg("password").toCharArray(password, sizeof(password));
       if (server.arg("timeout") == "0"){
@@ -452,6 +473,7 @@ void handleSettings() {
       }
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
+      screensaver = server.arg("screensaver");
       // Write secrets.json
       StaticJsonDocument<200> doc;
       doc["ssid"] = server.arg("ssid");
@@ -459,6 +481,7 @@ void handleSettings() {
       doc["timeout"] = (server.arg("timeout").toInt() * 2);
       doc["brightness"] = server.arg("brightness").toInt();
       doc["textcolor"] = textcolor;
+      doc["screensaver"] = screensaver;
       File config_file = LittleFS.open(config_filename, FILE_WRITE);
       if (!config_file) {
         returnHTTPError(500, "Failed to open config file for writing");
@@ -472,7 +495,7 @@ void handleSettings() {
         "</head>"
         "<body>"
         "<form>"
-        "<p>Settings saved, you must reboot for them to take effect.</p>"
+        "<p>Settings saved, you must reboot for some settings to take effect.</p>"
         "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
         "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
         "</form>"
@@ -496,16 +519,26 @@ void handleOTA(){
       "<body>"
       "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
       "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
-      "<h1>OTA Update</h1>"
+      "<h1><a href='" + releases + "'>OTA Update</a></h1>"
+      "<a href='" + releases + "'><div id='latestversion'></div><a/><br>"
       "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
       "<label id='file-input' for='file'>   Choose file...</label>"
-      "<input id='sub-button' type='submit' class=btn value='Update'>"
+      "<input id='sub-button' type='submit' class=actionbtn value='Update'>"
       "<br><br>"
       "<div id='prg'></div>"
       "<br><div id='prgbar'><div id='bar'></div></div><br>"
       "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
       "</form>"
       "<script>"
+      "fetch('" + latest_url + "')"
+      ".then(function(response) {"
+      "response.text().then(function(text) {"
+      "latestVersion = parseFloat(text);"
+      "if (latestVersion > " + VERSION + "){"
+      "document.getElementById('latestversion').textContent = \"Update Available: \" + latestVersion;"
+      "}"
+      "});"
+      "});"
       "function sub(obj){"
       "var fileName = obj.value.split('\\\\');"
       "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
@@ -604,7 +637,7 @@ void handleSD() {
         "<input type=\"checkbox\" name=\"animated\" id=\"animated\">"
         " Animated GIF</label>"
         "</div>"        
-        "<input id='sub-button' type='submit' class=btn value='Upload'>"
+        "<input id='sub-button' type='submit' class=actionbtn value='Upload'>"
         "<br><br>"
         "<div id='prg'></div>"
         "<br><div id='prgbar'><div id='bar'></div></div><br>"
@@ -834,10 +867,30 @@ void handleSDPlay(){
 } /* handleSDPlay() */
 
 void handleText(){
+  // To display a line of text with curl
+  // curl http://rgbmatrix.local/text?line=Text
   if (server.method() == HTTP_GET) {
     if (server.arg("line") != "") {
+      String start_html =
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+        "<head>"
+        "<title>SD Play</title>"
+        + style +
+        "</head>"
+        "<body>"
+        "<form>"
+        "<p>";
+      String end_html =
+        "</p>"
+        "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+        "</form>"
+        "</body>"
+        "</html>";
+        client_ip = server.client().remoteIP();
+        tty_client = false;
+        LittleFS.remove(gif_filename);
         showTextLine(server.arg("line"));
-        returnHTML("SUCCESS");
+        returnHTML(start_html + "Displaying Text: " + server.arg("line") + end_html);
       } else {
         returnHTTPError(405, "Method Not Allowed");
       }
@@ -852,8 +905,10 @@ void handleVersion(){
 
 void handleClear(){
   dma_display->clearScreen();
+  client_ip = {0,0,0,0};
   sd_filename = "";
   config_display_on = false;
+  tty_client = false;
   LittleFS.remove(gif_filename);
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
@@ -925,7 +980,7 @@ void handleNotFound() {
   
   File data_file;
   if (LittleFS.exists(path.c_str())) {
-      data_file = LittleFS.open(path.c_str());
+    data_file = LittleFS.open(path.c_str());
   } else if (card_mounted) {
     if (SD.exists(path.c_str())) {
       data_file = SD.open(path.c_str());
@@ -945,7 +1000,7 @@ void handleNotFound() {
   data_file.close();
 } /* handleNotFound() */
 
-void checkIPClient() {
+void checkClientTimeout() {
   // Check if client who requested core image has gone away, if so clear screen
   if(client_ip != no_ip){
     if (ping_fail_count != 0){
@@ -970,8 +1025,13 @@ void checkIPClient() {
         sd_filename = "";
       }
     }
+  } else {
+    // Screen Saver
+    if (config_display_on == false && tty_client == false){
+      if (screensaver == "Plasma") plasmaScreenSaver(); // Plasma
+    }
   }
-} /* checkIPClient() */
+} /* checkClientTimeout() */
 
 void checkSerialClient() {
   if (DBG_OUTPUT_PORT.available()) {
@@ -1022,12 +1082,11 @@ void displaySetup() {
     panels_in_X_chain    // Chain length
   );
 
-  //Pins for a ESP32-Trinity
-  mxconfig.gpio.e = 18;
-  mxconfig.gpio.b1 = 26;
-  mxconfig.gpio.b2 = 12;
-  mxconfig.gpio.g1 = 27;
-  mxconfig.gpio.g2 = 13;
+  mxconfig.gpio.e = E;
+  mxconfig.gpio.b1 = B1;
+  mxconfig.gpio.b2 = B2;
+  mxconfig.gpio.g1 = G1;
+  mxconfig.gpio.g2 = G2;
   mxconfig.clkphase = false;
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
@@ -1227,3 +1286,27 @@ void showGIF(const char *name, bool sd) {
     }
   }
 } /* showGIF() */
+
+void plasmaScreenSaver() {
+  for (int x = 0; x < (panelResX * panels_in_X_chain); x++) {
+    for (int y = 0; y <  panelResY; y++) {
+    int16_t v = 0;
+    uint8_t wibble = sin8(time_counter);
+    v += sin16(x * wibble * 3 + time_counter);
+    v += cos16(y * (128 - wibble)  + time_counter);
+    v += sin16(y * x * cos8(-time_counter) / 8);
+
+    currentColor = ColorFromPalette(currentPalette, (v >> 8) + 127);
+    dma_display->drawPixelRGB888(x, y, currentColor.r, currentColor.g, currentColor.b);
+    }
+  }
+
+  ++time_counter;
+  ++cycles;
+
+  if (cycles >= 1024) {
+    time_counter = 0;
+    cycles = 0;
+    currentPalette = palettes[random(0,sizeof(palettes)/sizeof(palettes[0]))];
+  }
+} /* plasmaScreenSaver() */
