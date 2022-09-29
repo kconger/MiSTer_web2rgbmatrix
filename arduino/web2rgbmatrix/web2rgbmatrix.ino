@@ -30,7 +30,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#define VERSION "1.7"
+#define VERSION "1.8"
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -74,6 +74,8 @@ char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 #define B2 12
 #define G1 27
 #define G2 13
+#define R1 25
+#define R2 14
 // SD Card reader pins
 #define SD_SCLK 33
 #define SD_MISO 32
@@ -520,7 +522,7 @@ void handleOTA(){
       "<script src='https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js'></script>"
       "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form'>"
       "<h1><a href='" + releases + "'>OTA Update</a></h1>"
-      "<a href='" + releases + "'><div id='latestversion'></div><a/><br>"
+      "<a href='" + releases + "'><div id='latestversion'></div></a><br>"
       "<input type='file' name='update' id='file' onchange='sub(this)' style=display:none>"
       "<label id='file-input' for='file'>   Choose file...</label>"
       "<input id='sub-button' type='submit' class=actionbtn value='Update'>"
@@ -1087,6 +1089,8 @@ void displaySetup() {
   mxconfig.gpio.b2 = B2;
   mxconfig.gpio.g1 = G1;
   mxconfig.gpio.g2 = G2;
+  mxconfig.gpio.r1 = R1;
+  mxconfig.gpio.r2 = R2;
   mxconfig.clkphase = false;
 
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
