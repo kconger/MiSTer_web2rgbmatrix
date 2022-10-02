@@ -2,7 +2,7 @@ These are some [MiSTer MGL](https://mister-devel.github.io/MkDocs_MiSTer/advance
 
 Current Cores
 -------
-- Atari2600 using the Atari7800 core
+- ATARI2600 using the ATARI7800 core
 - GameGear using the SMS core
 - MegaDuck using the Gameboy core
 - SG-1000 using the ColecoVision core
@@ -13,6 +13,6 @@ Install
 
 Copy the mgl files to the _Console and _Computer directories in /media/fat/.
 
-Copy the directories in the games and docs directories into your MiSTer games/ and docs/ directories.
+Make directories with the same name in your MiSTer games/ and docs/ directories. ie games/GameGear/
 
 Add your roms and manuals to these new directories.
