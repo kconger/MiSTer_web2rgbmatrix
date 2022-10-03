@@ -133,6 +133,8 @@ The wiring should look like the following and the enclosure is up to you. Detail
 ![matrix_off](docs/images/matrix-off.jpg "matrix_off")
 ![matrix_rear](docs/images/matrix-rear.jpg "matrix_rear")
 
+If your green and blue matrix colors are swapped, attach pin 2 to ground.
+
 **rgbmatrix Setup**
 
 Initially, the rgbmatrix starts up in AP mode with an SSID of "rgbmatrix" and the password "password".  Once connected to its SSID go to http://rgbmatrix.local/ in your web browser and configure the wifi client to connect to your Wifi infrastructure.
@@ -168,4 +170,6 @@ Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://
 
 Most GIFs are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
 
-Plasma screen saver code from [here](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/blob/master/examples/2_PatternPlasma/2_PatternPlasma.ino).
+Plasma animation code from [here](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/blob/master/examples/2_PatternPlasma/2_PatternPlasma.ino).
+
+Starfield animation code from [here](https://github.com/sinoia/oled-starfield)

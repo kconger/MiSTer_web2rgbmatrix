@@ -30,7 +30,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#define VERSION "1.8"
+#define VERSION "1.9"
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -53,7 +53,7 @@ String textcolor = DEFAULT_TEXT_COLOR;
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_SCREENSAVER "Blank" // Blank | Plasma
+#define DEFAULT_SCREENSAVER "Blank" // Blank | Plasma | Starfield
 String screensaver = DEFAULT_SCREENSAVER;
 
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
@@ -81,12 +81,14 @@ char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 #define SD_MISO 32
 #define SD_MOSI 21
 #define SD_SS 22
+// Matrix Alt Config Pin - Connect to ground to swap Blue/Green
+#define ALT 2
 
 SPIClass spi = SPIClass(HSPI);
 
 // Matrix Config
 // See the "displaySetup" method for more display config options
-MatrixPanel_I2S_DMA *dma_display = nullptr;
+MatrixPanel_I2S_DMA *matrix_display = nullptr;
 const int panelResX = 64;        // Number of pixels wide of each INDIVIDUAL panel module.
 const int panelResY = 32;        // Number of pixels tall of each INDIVIDUAL panel module.
 const int panels_in_X_chain = 2; // Total number of panels in X
@@ -144,10 +146,19 @@ CRGB ColorFromCurrentPalette(uint8_t index = 0, uint8_t brightness = 255, TBlend
   return ColorFromPalette(currentPalette, index, brightness, blendType);
 }
 
+//Starfield Screen Saver
+const int starCount = 256; // number of stars in the star field
+const int maxDepth = 32;   // maximum distance away for a star
+// the star field - starCount stars represented as x, y and z co-ordinates
+double stars[starCount][3];
+CRGB *matrix_buffer;
+
 void setup(void) {    
   DBG_OUTPUT_PORT.begin(115200);
   DBG_OUTPUT_PORT.setDebugOutput(true);
   delay(1000);
+
+  pinMode(ALT, INPUT_PULLUP);
 
   // Initialize internal filesystem
   DBG_OUTPUT_PORT.println("Loading LITTLEFS");
@@ -238,6 +249,7 @@ void setup(void) {
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure\n" : "OTA Update Success\n");
     delay(2000);
+    matrix_display->fillScreen(0);
     ESP.restart();
   }, handleUpdate);
   server.on("/sdcard", handleSD);
@@ -260,6 +272,15 @@ void setup(void) {
   showText(display_string);
   start_tick = millis();
 
+  // Initialise the star field with random stars
+  for (int i = 0; i < starCount; i++) {
+    stars[i][0] = getRandom(-25, 25);
+    stars[i][1] = getRandom(-25, 25);
+    stars[i][2] = getRandom(0, maxDepth);
+  }
+  matrix_buffer = (CRGB *)malloc(((panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain)) * sizeof(CRGB));
+  bufferClear(matrix_buffer);
+
   DBG_OUTPUT_PORT.println("Startup Complete");
 } /* setup() */
 
@@ -267,7 +288,7 @@ void loop(void) {
   // Clear initial boot display after 1min
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
-    dma_display->clearScreen();
+    matrix_display->clearScreen();
   }
   server.handleClient();  // Handle Web Client
   ftp_server.handleFTP(); // Handle FTP Client
@@ -405,6 +426,11 @@ void handleSettings() {
     saver_select_items =  saver_select_items + "<option value=\"Plasma\" selected>Plasma</option>";
   } else {
     saver_select_items =  saver_select_items + "<option value=\"Plasma\">Plasma</option>";
+  }
+  if (screensaver == "Starfield"){
+    saver_select_items =  saver_select_items + "<option value=\"Starfield\" selected>Starfield</option>";
+  } else {
+    saver_select_items =  saver_select_items + "<option value=\"Starfield\">Starfield</option>";
   }
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
@@ -607,7 +633,7 @@ void handleUpdate(){
       Update.printError(DBG_OUTPUT_PORT);
       showTextLine("OTA Update Error");
     } else {
-      showTextLine("OTA Progress: " + String((Update.progress()*100)/Update.size()) + "%");
+      showTextLine("OTA Update: " + String((Update.progress()*100)/Update.size()) + "%");
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
@@ -906,7 +932,7 @@ void handleVersion(){
 } /* handleVersion() */
 
 void handleClear(){
-  dma_display->clearScreen();
+  matrix_display->clearScreen();
   client_ip = {0,0,0,0};
   sd_filename = "";
   config_display_on = false;
@@ -1021,7 +1047,7 @@ void checkClientTimeout() {
       } else {
         // Client gone clear display
         DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
-        dma_display->clearScreen();
+        matrix_display->clearScreen();
         client_ip = {0,0,0,0};
         LittleFS.remove(gif_filename);
         sd_filename = "";
@@ -1031,6 +1057,7 @@ void checkClientTimeout() {
     // Screen Saver
     if (config_display_on == false && tty_client == false){
       if (screensaver == "Plasma") plasmaScreenSaver(); // Plasma
+      if (screensaver == "Starfield") starfieldScreenSaver(); // Starfield
     }
   }
 } /* checkClientTimeout() */
@@ -1085,23 +1112,30 @@ void displaySetup() {
   );
 
   mxconfig.gpio.e = E;
-  mxconfig.gpio.b1 = B1;
-  mxconfig.gpio.b2 = B2;
-  mxconfig.gpio.g1 = G1;
-  mxconfig.gpio.g2 = G2;
   mxconfig.gpio.r1 = R1;
   mxconfig.gpio.r2 = R2;
+  if (digitalRead(ALT) == HIGH) {
+    mxconfig.gpio.b1 = B1;
+    mxconfig.gpio.b2 = B2;
+    mxconfig.gpio.g1 = G1;
+    mxconfig.gpio.g2 = G2;
+  } else {
+    mxconfig.gpio.b1 = G1;
+    mxconfig.gpio.b2 = G2;
+    mxconfig.gpio.g1 = B1;
+    mxconfig.gpio.g2 = B2;    
+  }
   mxconfig.clkphase = false;
 
-  dma_display = new MatrixPanel_I2S_DMA(mxconfig);
-  dma_display->begin();
-  dma_display->setBrightness8(brightness); //0-255
-  dma_display->clearScreen();
+  matrix_display = new MatrixPanel_I2S_DMA(mxconfig);
+  matrix_display->begin();
+  matrix_display->setBrightness8(brightness); //0-255
+  matrix_display->clearScreen();
 } /* displaySetup() */
 
 void showTextLine(String text){
   int matrix_width = panelResX * panels_in_X_chain;
-  int matrix_heigth = panelResY;
+  int matrix_heigth = panelResY * panels_in_Y_chain;
   int char_width = 6;
   int char_heigth = 8;
   int x = (matrix_width - (text.length() * char_width)) / 2;
@@ -1116,10 +1150,11 @@ void showTextLine(String text){
   byte g=(byte)(rgb>>8);
   byte b=(byte)(rgb);
 
-  dma_display->clearScreen();
-  dma_display->setTextColor(dma_display->color565(r, g, b));
-  dma_display->setCursor(x, y);
-  dma_display->println(text);
+  //matrix_display->clearScreen();
+  matrix_display->fillScreen(0);
+  matrix_display->setTextColor(matrix_display->color565(r, g, b));
+  matrix_display->setCursor(x, y);
+  matrix_display->println(text);
 } /* showTextLine() */
 
 void showText(String text){
@@ -1132,10 +1167,11 @@ void showText(String text){
   byte g=(byte)(rgb>>8);
   byte b=(byte)(rgb);
 
-  dma_display->clearScreen();
-  dma_display->setTextColor(dma_display->color565(r, g, b));
-  dma_display->setCursor(0, 0);
-  dma_display->println(text);
+  //matrix_display->clearScreen();
+  matrix_display->fillScreen(0);
+  matrix_display->setTextColor(matrix_display->color565(r, g, b));
+  matrix_display->setCursor(0, 0);
+  matrix_display->println(text);
 } /* showText() */
 
 // Copy a horizontal span of pixels from a source buffer to an X,Y position
@@ -1154,7 +1190,7 @@ void span(uint16_t *src, int16_t x, int16_t y, int16_t width) {
     width -= (x2 - totalWidth + 1);
   }
   while(x <= x2) {
-    dma_display->drawPixel(x++, y, *src++);
+    matrix_display->drawPixel(x++, y, *src++);
   } 
 } /* span() */
 
@@ -1273,7 +1309,7 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
 
 void showGIF(const char *name, bool sd) {
   config_display_on = false;
-  dma_display->clearScreen();
+  matrix_display->clearScreen();
   if (sd && card_mounted){
     if (gif.open(name, GIFSDOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
       DBG_OUTPUT_PORT.printf("Successfully opened GIF from SD; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
@@ -1293,7 +1329,7 @@ void showGIF(const char *name, bool sd) {
 
 void plasmaScreenSaver() {
   for (int x = 0; x < (panelResX * panels_in_X_chain); x++) {
-    for (int y = 0; y <  panelResY; y++) {
+    for (int y = 0; y < (panelResY * panels_in_Y_chain); y++) {
     int16_t v = 0;
     uint8_t wibble = sin8(time_counter);
     v += sin16(x * wibble * 3 + time_counter);
@@ -1301,7 +1337,7 @@ void plasmaScreenSaver() {
     v += sin16(y * x * cos8(-time_counter) / 8);
 
     currentColor = ColorFromPalette(currentPalette, (v >> 8) + 127);
-    dma_display->drawPixelRGB888(x, y, currentColor.r, currentColor.g, currentColor.b);
+    matrix_display->drawPixelRGB888(x, y, currentColor.r, currentColor.g, currentColor.b);
     }
   }
 
@@ -1314,3 +1350,68 @@ void plasmaScreenSaver() {
     currentPalette = palettes[random(0,sizeof(palettes)/sizeof(palettes[0]))];
   }
 } /* plasmaScreenSaver() */
+
+void starfieldScreenSaver() {
+  bufferClear(matrix_buffer);
+
+  int origin_x = (panelResX * panels_in_X_chain) / 2;
+  int origin_y = (panelResY * panels_in_Y_chain) / 2;
+
+  // Iterate through the stars reducing the z co-ordinate in order to move the
+  // star closer.
+  for (int i = 0; i < starCount; ++i) {
+    stars[i][2] -= 0.19;
+    // if the star has moved past the screen (z < 0) reposition it far away
+    // with random x and y positions.
+    if (stars[i][2] <= 0) {
+      stars[i][0] = getRandom(-25, 25);
+      stars[i][1] = getRandom(-25, 25);
+      stars[i][2] = maxDepth;
+    }
+
+    // Convert the 3D coordinates to 2D using perspective projection.
+    double k = (panelResX * panels_in_X_chain) / stars[i][2];
+    int x = static_cast<int>(stars[i][0] * k + origin_x);
+    int y = static_cast<int>(stars[i][1] * k + origin_y);
+
+    // Draw the star (if it is visible in the screen).
+    // Distant stars are smaller than closer stars.
+    if ((0 <= x and x < (panelResX * panels_in_X_chain)) 
+      and (0 <= y and y < (panelResY * panels_in_Y_chain))) {
+      int size = (1 - stars[i][2] / maxDepth) * 4;
+
+      for (int xplus = 0; xplus < size; xplus++) {
+        for (int yplus = 0; yplus < size; yplus++) {
+          if ((((y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)) < (panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain))) {
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].r=255;
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].g=255;
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].b=255;
+          }
+        }
+      }
+      matrixFill(matrix_buffer);
+    }
+  }
+} /* starfieldScreenSaver() */
+
+int getRandom(int lower, int upper) {
+    /* Generate and return a  random number between lower and upper bound */
+    return lower + static_cast<int>(rand() % (upper - lower + 1));
+} /* getRandom() */
+
+void bufferClear(CRGB *buf){
+  memset(buf, 0x00, ((panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain)) * sizeof(CRGB)); // flush buffer to black  
+} /* bufferClear() */
+
+void matrixFill(CRGB *leds){
+  uint16_t y = (panelResY * panels_in_Y_chain);
+  do {
+    --y;
+    uint16_t x = (panelResX * panels_in_X_chain);
+    do {
+      --x;
+        uint16_t _pixel = y * (panelResX * panels_in_X_chain) + x;
+        matrix_display->drawPixelRGB888( x, y, leds[_pixel].r, leds[_pixel].g, leds[_pixel].b);
+    } while(x);
+  } while(y);
+} /* matrixFill() */
