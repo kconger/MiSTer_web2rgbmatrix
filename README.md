@@ -9,6 +9,7 @@ Current features
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Plays animated GIF then displays the static GIF if available
 - Displays a screen saver or blank screen if requesting client is off after a user-configurable threshold
+- Screen Savers: Blank, Tetris Clock, Plasma, and Starfield
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
@@ -31,7 +32,7 @@ Hardware
 Software
 - [Arduino IDE 2.0+](https://www.arduino.cc/en/software)
 - ESP32 Board Support Package 2.0+
-- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping), [FastLED](https://github.com/FastLED/FastLED)
+- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping), [ezTime](https://github.com/ropg/ezTime), [FastLED](https://github.com/FastLED/FastLED), [TetrisAnimation](https://github.com/toblum/TetrisAnimation)
 
 
 Install
@@ -173,3 +174,5 @@ Most GIFs are sourced from [the pixelcade art repo](https://github.com/alinke/pi
 Plasma animation code from [here](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/blob/master/examples/2_PatternPlasma/2_PatternPlasma.ino).
 
 Starfield animation code from [here](https://github.com/sinoia/oled-starfield)
+
+Tetris Clock code from [here](https://github.com/witnessmenow/ESP32-Trinity/tree/master/examples/Projects/WifiTetrisClock)

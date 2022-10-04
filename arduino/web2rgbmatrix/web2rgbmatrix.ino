@@ -23,14 +23,23 @@
 #include <ESP32FtpServer.h>
 #include <ESP32Ping.h>
 #include <ESPmDNS.h>
+#include <ezTime.h>
 #include <FastLED.h>
 #include <LittleFS.h>
+#include <TetrisMatrixDraw.h>
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-#define VERSION "1.9"
+
+#define VERSION "1.10"
+
+#define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+char timezone[80] = DEFAULT_TIMEZONE;
+
+#define DEFAULT_TWELVEHOUR false
+bool twelvehour = DEFAULT_TWELVEHOUR;
 
 #define DEFAULT_SSID "MY_SSID"
 char ssid[80] = DEFAULT_SSID;
@@ -53,7 +62,7 @@ String textcolor = DEFAULT_TEXT_COLOR;
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_SCREENSAVER "Blank" // Blank | Plasma | Starfield
+#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield
 String screensaver = DEFAULT_SCREENSAVER;
 
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
@@ -146,12 +155,32 @@ CRGB ColorFromCurrentPalette(uint8_t index = 0, uint8_t brightness = 255, TBlend
   return ColorFromPalette(currentPalette, index, brightness, blendType);
 }
 
-//Starfield Screen Saver
+// Starfield Screen Saver
 const int starCount = 256; // number of stars in the star field
 const int maxDepth = 32;   // maximum distance away for a star
 // the star field - starCount stars represented as x, y and z co-ordinates
 double stars[starCount][3];
 CRGB *matrix_buffer;
+
+// Clock Screen Saver
+// If this is set to false, the number will only change if the value behind it changes
+// e.g. the digit representing the least significant minute will be replaced every minute,
+// but the most significant number will only be replaced every 10 minutes.
+// When true, all digits will be replaced every minute.
+bool forceRefresh = true;
+unsigned long animationDue = 0;
+unsigned long animationDelay = 100; // Smaller number == faster
+TetrisMatrixDraw tetris(*matrix_display); // Main clock
+TetrisMatrixDraw tetris2(*matrix_display); // The "M" of AM/PM
+TetrisMatrixDraw tetris3(*matrix_display); // The "P" or "A" of AM/PM
+Timezone myTZ;
+unsigned long oneSecondLoopDue = 0;
+bool showColon = true;
+volatile bool finishedAnimating = false;
+String lastDisplayedTime = "";
+String lastDisplayedAmPm = "";
+const int y_offset = (panelResY * panels_in_Y_chain) / 2;
+const int x_offset = (panelResX) / 2;
 
 void setup(void) {    
   DBG_OUTPUT_PORT.begin(115200);
@@ -202,6 +231,16 @@ void setup(void) {
   WiFi.onEvent(WiFiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(WiFiStationDisconnected, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
+  // Setup EZ Time
+  if (WiFi.status() == WL_CONNECTED ) {
+    setDebug(INFO);
+    waitForSync();
+    DBG_OUTPUT_PORT.println("UTC: " + UTC.dateTime());
+    myTZ.setLocation(F(timezone));
+    DBG_OUTPUT_PORT.print(F("Time in your timezone: "));
+    DBG_OUTPUT_PORT.println(myTZ.dateTime());
+  }
+
   // Initialize SD Card
   spi.begin(SD_SCLK, SD_MISO, SD_MOSI, SD_SS);
   if (SD.begin(SD_SS, spi, 8000000)) {
@@ -249,7 +288,7 @@ void setup(void) {
     server.sendHeader("Connection", "close");
     server.send(200, "text/plain", (Update.hasError()) ? "OTA Update Failure\n" : "OTA Update Success\n");
     delay(2000);
-    matrix_display->fillScreen(0);
+    matrix_display->clearScreen();
     ESP.restart();
   }, handleUpdate);
   server.on("/sdcard", handleSD);
@@ -266,11 +305,6 @@ void setup(void) {
   size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
   server.collectHeaders(headerkeys, headerkeyssize);
   server.begin();
-  
-  // Display boot status on matrix
-  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
-  showText(display_string);
-  start_tick = millis();
 
   // Initialise the star field with random stars
   for (int i = 0; i < starCount; i++) {
@@ -280,6 +314,18 @@ void setup(void) {
   }
   matrix_buffer = (CRGB *)malloc(((panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain)) * sizeof(CRGB));
   bufferClear(matrix_buffer);
+
+  // Initialize Tetris clock
+  tetris.display = matrix_display; // Main clock
+  tetris2.display = matrix_display; // The "M" of AM/PM
+  tetris3.display = matrix_display; // The "P" or "A" of AM/PM
+  finishedAnimating = false;
+  tetris.scale = 2;
+
+  // Display boot status on matrix
+  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
+  showText(display_string);
+  start_tick = millis();
 
   DBG_OUTPUT_PORT.println("Startup Complete");
 } /* setup() */
@@ -305,7 +351,7 @@ bool parseConfig() {
   }
 
   // Check if we can deserialize the secrets.json file
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<512> doc;
   DeserializationError err = deserializeJson(doc, config_file);
   if (err) {
     DBG_OUTPUT_PORT.println("ERROR: deserializeJson() failed with code ");
@@ -320,6 +366,8 @@ bool parseConfig() {
   brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
   textcolor = doc["textcolor"] | DEFAULT_TEXT_COLOR;
   screensaver = doc["screensaver"] | DEFAULT_SCREENSAVER;
+  twelvehour = doc["twelvehour"] | DEFAULT_TWELVEHOUR;
+  strlcpy(timezone, doc["timezone"] | DEFAULT_TIMEZONE, sizeof(timezone));
        
   // Close the secrets.json file
   config_file.close();
@@ -394,10 +442,6 @@ void handleRoot() {
       "<tr><td>SD Card</td><td>" + sd_status + "</td></tr>"
       "<tr><td>Wifi Mode</td><td>" + wifi_mode + "</td></tr>"
       "<tr><td>rgbmatrix IP</td><td>" + my_ip.toString() + "</td></tr>"
-      "<tr><td>Text Color</td><td style=\"background-color:" + textcolor + ";border:1px solid black;\"></td></tr>"
-      "<tr><td>Brightness</td><td>" + brightness + "</td></tr>"
-      "<tr><td>Screen Saver</td><td>" + screensaver + "</td></tr>"
-      "<tr><td>Client Timeout</td><td>" + (ping_fail_count / 2) + " minutes</td></tr>"
       + image_status + 
       "</table>"
       "</p>"
@@ -417,21 +461,94 @@ void handleRoot() {
 
 void handleSettings() {
   String saver_select_items = "";
-  if (screensaver == "Blank"){
-    saver_select_items =  saver_select_items + "<option value=\"Blank\" selected>Blank</option>";
-  } else {
-    saver_select_items =  saver_select_items + "<option value=\"Blank\">Blank</option>";
-  }
-  if (screensaver == "Plasma"){
-    saver_select_items =  saver_select_items + "<option value=\"Plasma\" selected>Plasma</option>";
-  } else {
-    saver_select_items =  saver_select_items + "<option value=\"Plasma\">Plasma</option>";
-  }
-  if (screensaver == "Starfield"){
-    saver_select_items =  saver_select_items + "<option value=\"Starfield\" selected>Starfield</option>";
-  } else {
-    saver_select_items =  saver_select_items + "<option value=\"Starfield\">Starfield</option>";
-  }
+  saver_select_items =  saver_select_items + "<option value=\"Blank\"" + ((screensaver == "Blank") ? " selected" : "") + ">Blank</option>";
+  saver_select_items =  saver_select_items + "<option value=\"Clock\"" + ((screensaver == "Clock") ? " selected" : "") + ">Clock</option>";
+  saver_select_items =  saver_select_items + "<option value=\"Plasma\"" + ((screensaver == "Plasma") ? " selected" : "") + ">Plasma</option>";
+  saver_select_items =  saver_select_items + "<option value=\"Starfield\"" + ((screensaver == "Starfield") ? " selected" : "") + ">Starfield</option>";
+
+  String tz_select_items = "";
+  tz_select_items = tz_select_items + "<option value=\"Etc/GMT+12\"" + ((String(timezone) == "Etc/GMT+12") ? " selected" : "") + ">(GMT-12:00) International Date Line West</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Midway\"" + ((String(timezone) == "Pacific/Midway") ? " selected" : "") + ">(GMT-11:00) Midway Island, Samoa</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Honolulu\"" + ((String(timezone) == "Pacific/Honolulu") ? " selected" : "") + ">(GMT-10:00) Hawaii</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Anchorage\"" + ((String(timezone) == "America/Anchorage") ? " selected" : "") + ">(GMT-09:00) Alaska</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Los_Angeles\"" + ((String(timezone) == "America/Los_Angeles") ? " selected" : "") + ">(GMT-08:00) Pacific Time (US & Canada)</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Tijuana\"" + ((String(timezone) == "America/Tijuana") ? " selected" : "") + ">(GMT-08:00) Tijuana, Baja California</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Phoenix\"" + ((String(timezone) == "America/Phoenix") ? " selected" : "") + ">(GMT-07:00) Arizona</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Chihuahua\"" + ((String(timezone) == "America/Chihuahua") ? " selected" : "") + ">(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Denver\"" + ((String(timezone) == "America/Denver") ? " selected" : "") + ">(GMT-07:00) Mountain Time (US & Canada)</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Managua\"" + ((String(timezone) == "America/Managua") ? " selected" : "") + ">(GMT-06:00) Central America</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Chicago\"" + ((String(timezone) == "America/Chicago") ? " selected" : "") + ">(GMT-06:00) Central Time (US & Canada)</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Mexico_City\"" + ((String(timezone) == "America/Mexico_City") ? " selected" : "") + ">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>";
+  tz_select_items = tz_select_items + "<option value=\"Canada/Saskatchewan\"" + ((String(timezone) == "Canada/Saskatchewan") ? " selected" : "") + ">(GMT-06:00) Saskatchewan</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Bogota\"" + ((String(timezone) == "America/Bogota") ? " selected" : "") + ">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/New_York\"" + ((String(timezone) == "America/New_York") ? " selected" : "") + ">(GMT-05:00) Eastern Time (US & Canada)</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Indiana/Knox\"" + ((String(timezone) == "America/Indiana/Knox") ? " selected" : "") + ">(GMT-05:00) Indiana (East)</option>";
+  tz_select_items = tz_select_items + "<option value=\"Canada/Atlantic\"" + ((String(timezone) == "Canada/Atlantic") ? " selected" : "") + ">(GMT-04:00) Atlantic Time (Canada)</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Caracas\"" + ((String(timezone) == "America/Caracas") ? " selected" : "") + ">(GMT-04:00) Caracas, La Paz</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Manaus\"" + ((String(timezone) == "America/Manaus") ? " selected" : "") + ">(GMT-04:00) Manaus</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Santiago\"" + ((String(timezone) == "America/Santiago") ? " selected" : "") + ">(GMT-04:00) Santiago</option>";
+  tz_select_items = tz_select_items + "<option value=\"Canada/Newfoundland\"" + ((String(timezone) == "Canada/Newfoundland") ? " selected" : "") + ">(GMT-03:30) Newfoundland</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Sao_Paulo\"" + ((String(timezone) == "America/Sao_Paulo") ? " selected" : "") + ">(GMT-03:00) Brasilia</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Argentina/Buenos_Aires\"" + ((String(timezone) == "America/Argentina/Buenos_Aires") ? " selected" : "") + ">(GMT-03:00) Buenos Aires, Georgetown</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Godthab\"" + ((String(timezone) == "America/Godthab") ? " selected" : "") + ">(GMT-03:00) Greenland</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Montevideo\"" + ((String(timezone) == "America/Montevideo") ? " selected" : "") + ">(GMT-03:00) Montevideo</option>";
+  tz_select_items = tz_select_items + "<option value=\"America/Noronha\"" + ((String(timezone) == "America/Noronha") ? " selected" : "") + ">(GMT-02:00) Mid-Atlantic</option>";
+  tz_select_items = tz_select_items + "<option value=\"Atlantic/Cape_Verde\"" + ((String(timezone) == "Atlantic/Cape_Verde") ? " selected" : "") + ">(GMT-01:00) Cape Verde Is.</option>";
+  tz_select_items = tz_select_items + "<option value=\"Atlantic/Azores\"" + ((String(timezone) == "Atlantic/Azores") ? " selected" : "") + ">(GMT-01:00) Azores</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Casablanca\"" + ((String(timezone) == "Africa/Casablanca") ? " selected" : "") + ">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>";
+  tz_select_items = tz_select_items + "<option value=\"Etc/Greenwich\"" + ((String(timezone) == "Etc/Greenwich") ? " selected" : "") + ">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Amsterdam\"" + ((String(timezone) == "Europe/Amsterdam") ? " selected" : "") + ">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Belgrade\"" + ((String(timezone) == "Europe/Belgrade") ? " selected" : "") + ">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Brussels\"" + ((String(timezone) == "Europe/Brussels") ? " selected" : "") + ">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Sarajevo\"" + ((String(timezone) == "Europe/Sarajevo") ? " selected" : "") + ">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Lagos\"" + ((String(timezone) == "Africa/Lagos") ? " selected" : "") + ">(GMT+01:00) West Central Africa</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Amman\"" + ((String(timezone) == "Asia/Amman") ? " selected" : "") + ">(GMT+02:00) Amman</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Athens\"" + ((String(timezone) == "Europe/Athens") ? " selected" : "") + ">(GMT+02:00) Athens, Bucharest, Istanbul</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Beirut\"" + ((String(timezone) == "Asia/Beirut") ? " selected" : "") + ">(GMT+02:00) Beirut</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Cairo\"" + ((String(timezone) == "Africa/Cairo") ? " selected" : "") + ">(GMT+02:00) Cairo</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Harare\"" + ((String(timezone) == "Africa/Harare") ? " selected" : "") + ">(GMT+02:00) Harare, Pretoria</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Helsinki\"" + ((String(timezone) == "Europe/Helsinki") ? " selected" : "") + ">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Jerusalem\"" + ((String(timezone) == "Asia/Jerusalem") ? " selected" : "") + ">(GMT+02:00) Jerusalem</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Minsk\"" + ((String(timezone) == "Europe/Minsk") ? " selected" : "") + ">(GMT+02:00) Minsk</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Windhoek\"" + ((String(timezone) == "Africa/Windhoek") ? " selected" : "") + ">(GMT+02:00) Windhoek</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Kuwait\"" + ((String(timezone) == "Asia/Kuwait") ? " selected" : "") + ">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>";
+  tz_select_items = tz_select_items + "<option value=\"Europe/Moscow\"" + ((String(timezone) == "Europe/Moscow") ? " selected" : "") + ">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>";
+  tz_select_items = tz_select_items + "<option value=\"Africa/Nairobi\"" + ((String(timezone) == "Africa/Nairobi") ? " selected" : "") + ">(GMT+03:00) Nairobi</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Tbilisi\"" + ((String(timezone) == "Asia/Tbilisi") ? " selected" : "") + ">(GMT+03:00) Tbilisi</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Tehran\"" + ((String(timezone) == "Asia/Tehran") ? " selected" : "") + ">(GMT+03:30) Tehran</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Muscat\"" + ((String(timezone) == "Asia/Muscat") ? " selected" : "") + ">(GMT+04:00) Abu Dhabi, Muscat</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Baku\"" + ((String(timezone) == "Asia/Baku") ? " selected" : "") + ">(GMT+04:00) Baku</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Yerevan\"" + ((String(timezone) == "Asia/Yerevan") ? " selected" : "") + ">(GMT+04:00) Yerevan</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Kabul\"" + ((String(timezone) == "Asia/Kabul") ? " selected" : "") + ">(GMT+04:30) Kabul</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Yekaterinburg\"" + ((String(timezone) == "Asia/Yekaterinburg") ? " selected" : "") + ">(GMT+05:00) Yekaterinburg</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Karachi\"" + ((String(timezone) == "Asia/Karachi") ? " selected" : "") + ">(GMT+05:00) Islamabad, Karachi, Tashkent</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Calcutta\"" + ((String(timezone) == "Asia/Calcutta") ? " selected" : "") + ">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Katmandu\"" + ((String(timezone) == "Asia/Katmandu") ? " selected" : "") + ">(GMT+05:45) Kathmandu</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Almaty\"" + ((String(timezone) == "Asia/Almaty") ? " selected" : "") + ">(GMT+06:00) Almaty, Novosibirsk</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Dhaka\"" + ((String(timezone) == "Asia/Dhaka") ? " selected" : "") + ">(GMT+06:00) Astana, Dhaka</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Rangoon\"" + ((String(timezone) == "Asia/Rangoon") ? " selected" : "") + ">(GMT+06:30) Yangon (Rangoon)</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Bangkok\"" + ((String(timezone) == "Asia/Bangkok") ? " selected" : "") + ">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Krasnoyarsk\"" + ((String(timezone) == "Asia/Krasnoyarsk") ? " selected" : "") + ">(GMT+07:00) Krasnoyarsk</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Hong_Kong\"" + ((String(timezone) == "Asia/Hong_Kong") ? " selected" : "") + ">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Kuala_Lumpur\"" + ((String(timezone) == "Asia/Kuala_Lumpur") ? " selected" : "") + ">(GMT+08:00) Kuala Lumpur, Singapore</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Irkutsk\"" + ((String(timezone) == "Asia/Irkutsk") ? " selected" : "") + ">(GMT+08:00) Irkutsk, Ulaan Bataar</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Perth\"" + ((String(timezone) == "Australia/Perth") ? " selected" : "") + ">(GMT+08:00) Perth</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Taipei\"" + ((String(timezone) == "Asia/Taipei") ? " selected" : "") + ">(GMT+08:00) Taipei</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Tokyo\"" + ((String(timezone) == "Asia/Tokyo") ? " selected" : "") + ">(GMT+09:00) Osaka, Sapporo, Tokyo</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Seoul\"" + ((String(timezone) == "Asia/Seoul") ? " selected" : "") + ">(GMT+09:00) Seoul</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Yakutsk\"" + ((String(timezone) == "Asia/Yakutsk") ? " selected" : "") + ">(GMT+09:00) Yakutsk</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Adelaide\"" + ((String(timezone) == "Australia/Adelaide") ? " selected" : "") + ">(GMT+09:30) Adelaide</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Darwin\"" + ((String(timezone) == "Australia/Darwin") ? " selected" : "") + ">(GMT+09:30) Darwin</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Brisbane\"" + ((String(timezone) == "Australia/Brisbane") ? " selected" : "") + ">(GMT+10:00) Brisbane</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Canberra\"" + ((String(timezone) == "Australia/Canberra") ? " selected" : "") + ">(GMT+10:00) Canberra, Melbourne, Sydney</option>";
+  tz_select_items = tz_select_items + "<option value=\"Australia/Hobart\"" + ((String(timezone) == "Australia/Hobart") ? " selected" : "") + ">(GMT+10:00) Hobart</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Guam\"" + ((String(timezone) == "Pacific/Guam") ? " selected" : "") + ">(GMT+10:00) Guam, Port Moresby</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Vladivostok\"" + ((String(timezone) == "Asia/Vladivostok") ? " selected" : "") + ">(GMT+10:00) Vladivostok</option>";
+  tz_select_items = tz_select_items + "<option value=\"Asia/Magadan\"" + ((String(timezone) == "Asia/Magadan") ? " selected" : "") + ">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Auckland\"" + ((String(timezone) == "Pacific/Auckland") ? " selected" : "") + ">(GMT+12:00) Auckland, Wellington</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Fiji\"" + ((String(timezone) == "Pacific/Fiji") ? " selected" : "") + ">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>";
+  tz_select_items = tz_select_items + "<option value=\"Pacific/Tongatapu\"" + ((String(timezone) == "Pacific/Tongatapu") ? " selected" : "") + ">(GMT+13:00) Nuku'alofa</option>";
+  
   String html =
     "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
     "<head>"
@@ -469,6 +586,7 @@ void handleSettings() {
     "<input type=\"color\" id=\"textcolor\" name=\"textcolor\" value=\"" + textcolor + "\">"
     "<label for=\"brightness\">LED Brightness</label>"
     "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
+    "<h3>Screen Saver Settings</h3>"
     "<label for=\"screensaver\">Screen Saver</label><br>"
     "<br>"
     "<select id=\"screensaver\" name=\"screensaver\" value=\"" + screensaver + "\">"
@@ -477,6 +595,15 @@ void handleSettings() {
     "<br><br>"
     "<label for=\"timeout\">Client Timeout(Minutes)</label>"
     "<input type=\"number\" id=\"timeout\" name=\"timeout\" min=\"0\" max=\"60\" value=" + (ping_fail_count / 2) + ">"
+    "<label for=\"timezone\">Timezone</label><br>"
+    "<br>"
+    "<select id=\"timezone\" name=\"timezone\" value=\"" + String(timezone) + "\">"
+    + tz_select_items +
+    "</select>"
+    "<br><br>"
+    "<label for=\"twelvehour\" class=\"chkboxlabel\">"
+    "<input type=\"checkbox\" id=\"twelvehour\" name=\"twelvehour\" value=\"true\"" + (twelvehour ? " checked=\"checked\"" : "") + "/>"
+    " 12hr Format</label>"
     "</p>"
     "<input type=\"submit\" class=actionbtn value=\"Save\"><br>"
     "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
@@ -485,7 +612,7 @@ void handleSettings() {
     "</html>";
   if (server.method() == HTTP_GET) {
     if (server.arg("ssid") != "" && server.arg("password") != "" && server.arg("brightness") != "" && server.arg("timeout") != "" 
-      && server.arg("textcolor") != "" && server.arg("screensaver") != "" ) {
+      && server.arg("textcolor") != "" && server.arg("screensaver") != "" && server.arg("timezone") != ""){
 
       server.arg("ssid").toCharArray(ssid, sizeof(ssid));
       server.arg("password").toCharArray(password, sizeof(password));
@@ -502,14 +629,25 @@ void handleSettings() {
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
       screensaver = server.arg("screensaver");
+      String tz = server.arg("timezone");
+      tz.replace("%2F", "/");
+      tz.toCharArray(timezone, sizeof(timezone));
+      if(server.arg("twelvehour") == "true"){
+        twelvehour = true;
+      } else {
+        twelvehour = false;
+      }
+      
       // Write secrets.json
-      StaticJsonDocument<200> doc;
+      StaticJsonDocument<512> doc;
       doc["ssid"] = server.arg("ssid");
       doc["password"] = server.arg("password");
       doc["timeout"] = (server.arg("timeout").toInt() * 2);
       doc["brightness"] = server.arg("brightness").toInt();
       doc["textcolor"] = textcolor;
       doc["screensaver"] = screensaver;
+      doc["timezone"] = timezone;
+      doc["twelvehour"] = twelvehour;
       File config_file = LittleFS.open(config_filename, FILE_WRITE);
       if (!config_file) {
         returnHTTPError(500, "Failed to open config file for writing");
@@ -562,7 +700,7 @@ void handleOTA(){
       ".then(function(response) {"
       "response.text().then(function(text) {"
       "latestVersion = parseFloat(text);"
-      "if (latestVersion > " + VERSION + "){"
+      "if (latestVersion != parseFloat(" + VERSION + ")){"
       "document.getElementById('latestversion').textContent = \"Update Available: \" + latestVersion;"
       "}"
       "});"
@@ -772,7 +910,7 @@ void handleRemotePlay(){
   if(uploadfile.status == UPLOAD_FILE_START) {
     contentLength = server.header("Content-Length").toInt();
     if (contentLength > (LittleFS.totalBytes() - LittleFS.usedBytes())) {
-      Serial.println("File too large: " + String(contentLength) + " > " + String(LittleFS.totalBytes() - LittleFS.usedBytes()));
+      DBG_OUTPUT_PORT.println("File too large: " + String(contentLength) + " > " + String(LittleFS.totalBytes() - LittleFS.usedBytes()));
       returnHTTPError(500, "File too large");
     }
     LittleFS.remove(gif_filename);
@@ -971,6 +1109,12 @@ void handleReboot() {
     "</body>"
     "</html>";
   returnHTML(html);
+  matrix_display->clearScreen();
+  client_ip = {0,0,0,0};
+  sd_filename = "";
+  config_display_on = false;
+  tty_client = false;
+  LittleFS.remove(gif_filename);
   ESP.restart();
 } /* handleReboot() */
 
@@ -1056,6 +1200,7 @@ void checkClientTimeout() {
   } else {
     // Screen Saver
     if (config_display_on == false && tty_client == false){
+      if (screensaver == "Clock") clockScreenSaver(); // Clock
       if (screensaver == "Plasma") plasmaScreenSaver(); // Plasma
       if (screensaver == "Starfield") starfieldScreenSaver(); // Starfield
     }
@@ -1393,6 +1538,115 @@ void starfieldScreenSaver() {
     }
   }
 } /* starfieldScreenSaver() */
+
+void clockScreenSaver() {
+  unsigned long now = millis();
+  if (now > oneSecondLoopDue) {
+    // We can call this often, but it will only
+    // update when it needs to
+    setMatrixTime();
+    showColon = !showColon;
+
+    // To reduce flicker on the screen we stop clearing the screen
+    // when the animation is finished, but we still need the colon to
+    // to blink
+    if (finishedAnimating) {
+      handleColonAfterAnimation();
+    }
+    oneSecondLoopDue = now + 1000;
+  }
+  now = millis();
+  if (now > animationDue) {
+    animationHandler();
+    animationDue = now + animationDelay;
+  }
+}
+
+// This method is for controlling the tetris library draw calls
+void animationHandler() {
+  // Not clearing the display and redrawing it when you
+  // dont need to improves how the refresh rate appears
+  if (!finishedAnimating) {
+    matrix_display->fillScreen(0);
+    if (twelvehour) {
+      // Place holders for checking are any of the tetris objects
+      // currently still animating.
+      bool tetris1Done = false;
+      bool tetris2Done = false;
+      bool tetris3Done = false;
+
+      tetris1Done = tetris.drawNumbers(-6 + x_offset, 10 + y_offset, showColon);
+      tetris2Done = tetris2.drawText(56 + x_offset, 9 + y_offset);
+
+      // Only draw the top letter once the bottom letter is finished.
+      if (tetris2Done) {
+        tetris3Done = tetris3.drawText(56 + x_offset, -1 + y_offset);
+      }
+
+      finishedAnimating = tetris1Done && tetris2Done && tetris3Done;
+
+    } else {
+      finishedAnimating = tetris.drawNumbers(2 + x_offset, 10 + y_offset, showColon);
+    }
+    matrix_display->flipDMABuffer();
+  }
+} /* animationHandler() */
+
+void setMatrixTime() {
+  String timeString = "";
+  String AmPmString = "";
+  if (twelvehour) {
+    // Get the time in format "1:15" or 11:15 (12 hour, no leading 0)
+    // Check the EZTime Github page for info on
+    // time formatting
+    timeString = myTZ.dateTime("g:i");
+
+    //If the length is only 4, pad it with
+    // a space at the beginning
+    if (timeString.length() == 4) {
+      timeString = " " + timeString;
+    }
+
+    //Get if its "AM" or "PM"
+    AmPmString = myTZ.dateTime("A");
+    if (lastDisplayedAmPm != AmPmString) {
+      lastDisplayedAmPm = AmPmString;
+      // Second character is always "M"
+      // so need to parse it out
+      tetris2.setText("M", forceRefresh);
+
+      // Parse out first letter of String
+      tetris3.setText(AmPmString.substring(0, 1), forceRefresh);
+    }
+  } else {
+    // Get time in format "01:15" or "22:15"(24 hour with leading 0)
+    timeString = myTZ.dateTime("H:i");
+  }
+
+  // Only update Time if its different
+  if (lastDisplayedTime != timeString) {
+    lastDisplayedTime = timeString;
+    tetris.setTime(timeString, forceRefresh);
+
+    // Must set this to false so animation knows
+    // to start again
+    finishedAnimating = false;
+  }
+} /* setMatrixTime() */
+
+void handleColonAfterAnimation() {
+  // It will draw the colon every time, but when the colour is black it
+  // should look like its clearing it.
+  uint16_t colour =  showColon ? tetris.tetrisWHITE : tetris.tetrisBLACK;
+  // The x position that you draw the tetris animation object
+  int x = twelvehour ? -6 : 2;
+  x = x + x_offset;
+  // The y position adjusted for where the blocks will fall from
+  // (this could be better!)
+  int y = 10 + y_offset - (TETRIS_Y_DROP_DEFAULT * tetris.scale);
+  tetris.drawColon(x, y, colour);
+  matrix_display->flipDMABuffer();
+} /* handleColonAfterAnimation() */
 
 int getRandom(int lower, int upper) {
     /* Generate and return a  random number between lower and upper bound */
