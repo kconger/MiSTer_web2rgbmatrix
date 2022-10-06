@@ -15,6 +15,7 @@ Current features
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
 - Web: Settings for Wifi, matrix text color, matrix brightness, screen saver, and client timeout 
 - Web: GIF uploads to SD Card
+- Web: File Browser
 - Web: OTA updates
 - FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
 - Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card.
@@ -32,7 +33,7 @@ Hardware
 Software
 - [Arduino IDE 2.0+](https://www.arduino.cc/en/software)
 - ESP32 Board Support Package 2.0+
-- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping), [ezTime](https://github.com/ropg/ezTime), [FastLED](https://github.com/FastLED/FastLED), [TetrisAnimation](https://github.com/toblum/TetrisAnimation)
+- Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping), [ezTime](https://github.com/ropg/ezTime), [FastLED](https://github.com/FastLED/FastLED), [SdFat](https://github.com/greiman/SdFat), [TetrisAnimation](https://github.com/toblum/TetrisAnimation)
 
 
 Install

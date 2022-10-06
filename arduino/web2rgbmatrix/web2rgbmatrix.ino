@@ -15,7 +15,6 @@
 * https://github.com/kconger/MiSTer_web2rgbmatrix
 */
 #include "FS.h"
-#include "SD.h"
 #include "SPI.h"
 #include <AnimatedGIF.h>
 #include <ArduinoJson.h>
@@ -26,6 +25,7 @@
 #include <ezTime.h>
 #include <FastLED.h>
 #include <LittleFS.h>
+#include <SdFat.h>
 #include <TetrisMatrixDraw.h>
 #include <Update.h>
 #include <WebServer.h>
@@ -33,7 +33,7 @@
 #include <WiFiClient.h>
 
 
-#define VERSION "20221004"
+#define VERSION "20221005"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -122,7 +122,7 @@ String style =
   "form{background:#fff;max-width:258px;margin:75px auto;padding:30px;border-radius:5px;text-align:center}"
   ".btn{background:#3498db;color:#fff;cursor:pointer}.btn:disabled,.btn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
   ".actionbtn{background:#218838;color:#fff;cursor:pointer}.actionbtn:disabled,.actionbtn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
-  ".rebootbtn{background:#c82333;color:#fff;cursor:pointer}.rebootbtn:disabled,.rebootbtn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
+  ".cautionbtn{background:#c82333;color:#fff;cursor:pointer}.cautionbtn:disabled,.cautionbtn.disabled{background:#ddd;color:#fff;cursor:not-allowed;pointer-events: none}"
   "input[type=\"checkbox\"]{margin:0px;width:22px;height:22px;}"
   "table{width: 100%;}select{width: 100%;height:44px;}"
   "</style>";
@@ -293,6 +293,8 @@ void setup(void) {
   }, handleUpdate);
   server.on("/sdcard", handleSD);
   server.on("/upload", HTTP_POST, [](){server.sendHeader("Connection", "close");}, handleUpload);
+  server.on("/list", HTTP_GET, handleFileList);
+  server.on("/delete", HTTP_GET, handleFileDelete);
   server.on("/sdplay", handleSDPlay);
   server.on("/localplay", handleLocalPlay);
   server.on("/remoteplay", HTTP_POST, [](){server.send(200);}, handleRemotePlay);
@@ -402,10 +404,6 @@ void returnHTTPError(int code, String msg) {
 
 void handleRoot() {
   if (server.method() == HTTP_GET) {
-    String gif_button = "";
-    if(card_mounted){
-      gif_button = "<input type=\"button\" class=btn onclick=\"location.href='/sdcard';\" value=\"GIF Upload\" />";
-    }
     String image_status = "";
     if (LittleFS.exists(gif_filename)){
       image_status = "<tr>"
@@ -446,10 +444,10 @@ void handleRoot() {
       "</table>"
       "</p>"
       "<input type=\"button\" class=actionbtn onclick=\"location.href='/clear';\" value=\"Clear Display\" />"
-      + gif_button +
+      + ((card_mounted) ? "<input type=\"button\" class=btn onclick=\"location.href='/sdcard';\" value=\"GIF Upload\" /><input type=\"button\" class=btn onclick=\"location.href='/list?dir=/';\" value=\"File Browser\" />" : "") +
       "<input type=\"button\" class=btn onclick=\"location.href='/settings';\" value=\"Settings\" />"
       "<input type=\"button\" class=btn onclick=\"location.href='/ota';\" value=\"OTA Update\" />"
-      "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
+      "<input type=\"button\" class=cautionbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
       "</form>"
       "</body>"
       "</html>";
@@ -663,7 +661,7 @@ void handleSettings() {
         "<form>"
         "<p>Settings saved, you must reboot for some settings to take effect.</p>"
         "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
-        "<input type=\"button\" class=rebootbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
+        "<input type=\"button\" class=cautionbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
         "</form>"
         "</body>"
         "</html>";
@@ -782,6 +780,119 @@ void handleUpdate(){
     }
   }
 } /* handleUpdate() */
+
+void handleFileList() {
+  if(card_mounted){
+    if (!server.hasArg("dir") && !server.hasArg("file")) {
+      returnHTTPError(500, "BAD ARGS");
+      return;
+    }
+    if (server.hasArg("dir")) {
+      String path = server.arg("dir");
+      File root = SD.open(path);
+      path = String();
+
+      String html = 
+        "<html>"
+        "<head>"
+        "<title>web2rgbmatrix - File Browser</title>"
+        + style +
+        "</head>"
+        "<body>"
+        "<form>"
+        "<h1>File Browser:</h1>"
+        "<h2>" + server.arg("dir") + "</h2>"
+        "<p><table>";
+      server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      server.sendHeader("Pragma", "no-cache");
+      server.sendHeader("Expires", "-1");
+      server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+      // Begin chunked transfer
+      server.send(200, "text/html", "");
+      server.sendContent(html);
+      if(root.isDirectory()){
+        if (server.arg("dir") != "/"){
+          String parent = server.arg("dir");
+          parent.replace(String(root.name()),"");
+          if (parent != "/" && parent.endsWith("/")){
+            parent.remove(parent.length() - 1, 1);
+          }
+          server.sendContent("<tr><td><a href=\"/list?dir=" + parent + "\">../</a></td></tr>");
+        }
+        File file = root.openNextFile();
+        while(file){
+          if (!String(file.name()).startsWith(".")) {
+            server.sendContent("<tr><td><a href=\"/list?" + String((file.isDirectory()) ? "dir=" : "file=") + String(file.path()) + "\">" + String(file.name()) + String((file.isDirectory()) ? "/" : "") +  "</a></td></tr>");
+          }
+          file = root.openNextFile();
+        }
+      }
+      server.sendContent("</table></p><input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Home\" /></form></body></html>");
+      server.sendContent(F("")); // this tells web client that transfer is done
+      server.client().stop();
+    } else if (server.hasArg("file")) {
+      String path = server.arg("file");
+      File file = SD.open(path);
+      path = String();
+      if (!file) {
+        returnHTTPError(404, "File Not Found");
+        return;
+      }
+      String html = 
+        "<html>"
+        "<head>"
+        "<title>web2rgbmatrix - File Browser</title>"
+        + style +
+        "</head>"
+        "<body>"
+        "<form>"
+        "<h1>File Browser:</h1>"
+        "<h3>" + server.arg("file") + "</h3>"
+        "<table><p>"
+        "<tr><td>Image</td><td><img src=\"" + server.arg("file") + "\" /></td></tr>"
+        "<tr><td>Size</td><td>" + file.size() + "B</td></tr>"
+        "</table></p>"
+        "<input id='play-button' type=\"button\" class=actionbtn onclick=\"location.href='/sdplay?file=" + server.arg("file") + "';\" value=\"Play\" />"
+        "<input id='delete-button' type=\"button\" class=cautionbtn onclick=\"location.href='/delete?file=" + server.arg("file") + "';\" value=\"Delete\" />"
+        "<input id='back-button' type=\"button\" class=btn onclick=\"history.back()\" value=\"Back\" />"
+        "</form></body></html>";
+      returnHTML(html);
+    }
+  } else {
+    returnHTTPError(500, "SD Card Not Mounted");
+  }
+} /* handleFileList() */
+
+void handleFileDelete() {
+  if(card_mounted){
+    if (!server.hasArg("file")) {
+      returnHTTPError(500, "BAD ARGS");
+      return;
+    }
+
+    File file = SD.open(server.arg("file"));
+    if (!file) {
+      returnHTTPError(404, "File Not Found");
+      return;
+    }
+    SD.remove(server.arg("file"));
+
+    String html = 
+      "<html xmlns=\"http://www.w3.org/1999/xhtml\">"
+      "<head>"
+      "<title>web2rgbmatrix - File Delete</title>"
+      + style +
+      "</head>"
+      "<body>"
+      "<form>"
+      "<h1>File Deleted: " + server.arg("file") + "</h1>"
+      "<input id='back-button' type=\"button\" class=btn onclick=\"window.history.go(-2)\" value=\"Back\" />"
+      "</form></body></html>";
+    returnHTML(html);
+  } else {
+    returnHTTPError(500, "SD Card Not Mounted");
+  }
+} /* handleFileDelete() */
 
 void handleSD() {
   if(card_mounted){
@@ -1014,12 +1125,12 @@ void handleSDPlay(){
         LittleFS.remove(gif_filename);
         // Check for and play animated GIF
         const char *requested_filename = server.arg("file").c_str();
-        if (SD.exists(requested_filename)) {
+        if (SD.exists(server.arg("file"))) {
           returnHTML(start_html + "Displaying SD File: " + server.arg("file") + end_html);
           sd_filename = server.arg("file");
           showGIF(requested_filename, true);
         } else {
-          returnHTTPError(404, "File Not Found: " + server.arg("file"));
+          returnHTTPError(404, start_html + "File Not Found: " + server.arg("file") + end_html);
         }
       } else {
         returnHTTPError(405, "Method Not Allowed");
