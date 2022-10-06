@@ -33,7 +33,7 @@
 #include <WiFiClient.h>
 
 
-#define VERSION "20221005"
+#define VERSION "20221006"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -827,7 +827,7 @@ void handleFileList() {
           file = root.openNextFile();
         }
       }
-      server.sendContent("</table></p><input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Home\" /></form></body></html>");
+      server.sendContent("</table></p><input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" /></form></body></html>");
       server.sendContent(F("")); // this tells web client that transfer is done
       server.client().stop();
     } else if (server.hasArg("file")) {
@@ -850,12 +850,13 @@ void handleFileList() {
         "<h3>" + server.arg("file") + "</h3>"
         "<table><p>"
         "<tr><td>Image</td><td><img src=\"" + server.arg("file") + "\" /></td></tr>"
-        "<tr><td>Size</td><td>" + file.size() + "B</td></tr>"
+        "<tr><td>Size</td><td>" + ((file.size() >= 1024) ? String(file.size() / 1024) + "KB" : String(file.size()) + "B") + "</td></tr>"
         "</table></p>"
         "<input id='play-button' type=\"button\" class=actionbtn onclick=\"location.href='/sdplay?file=" + server.arg("file") + "';\" value=\"Play\" />"
         "<input id='delete-button' type=\"button\" class=cautionbtn onclick=\"location.href='/delete?file=" + server.arg("file") + "';\" value=\"Delete\" />"
         "<input id='back-button' type=\"button\" class=btn onclick=\"history.back()\" value=\"Back\" />"
         "</form></body></html>";
+      file.close();
       returnHTML(html);
     }
   } else {
