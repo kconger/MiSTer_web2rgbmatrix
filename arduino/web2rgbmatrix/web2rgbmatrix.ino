@@ -33,7 +33,7 @@
 #include <WiFiClient.h>
 
 
-#define VERSION "20221006"
+#define VERSION "20221007"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -1033,6 +1033,7 @@ void handleRemotePlay(){
     if(upload_file) {                                    
       upload_file.close();
       client_ip = server.client().remoteIP();
+      ping_fail = 0;
       returnHTML("SUCCESS");
       sd_filename = "";
       tty_client = false;
@@ -1065,6 +1066,7 @@ void handleLocalPlay(){
           "</body>"
           "</html>";
         client_ip = server.client().remoteIP();
+        ping_fail = 0;
         tty_client = false;
         LittleFS.remove(gif_filename);
         String letter_folder(server.arg("file").charAt(0));
@@ -1073,7 +1075,7 @@ void handleLocalPlay(){
         String agif_fullpath = String(animated_gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
         const char *agif_requested_filename = agif_fullpath.c_str();
         if (SD.exists(agif_requested_filename)) {
-          returnHTML(start_html + "Displaying Animated GIF: " + agif_fullpath + end_html);
+          returnHTML(start_html + "Displaying Animated GIF: " + agif_fullpath + " For: " + client_ip.toString() + end_html);
           sd_filename = agif_fullpath;
           showGIF(agif_requested_filename, true);
         }
@@ -1088,7 +1090,7 @@ void handleLocalPlay(){
           returnHTML(start_html + "Displaying GIF: " + fullpath + end_html);
           sd_filename = fullpath;
           showGIF(requested_filename, true);
-        } 
+        }
       } else {
         returnHTTPError(405, "Method Not Allowed");
       }
@@ -1122,6 +1124,7 @@ void handleSDPlay(){
           "</body>"
           "</html>";
         client_ip = server.client().remoteIP();
+        ping_fail = 0;
         tty_client = false;
         LittleFS.remove(gif_filename);
         // Check for and play animated GIF
@@ -1165,6 +1168,7 @@ void handleText(){
         "</body>"
         "</html>";
         client_ip = server.client().remoteIP();
+        ping_fail = 0;
         tty_client = false;
         LittleFS.remove(gif_filename);
         showTextLine(server.arg("line"));
@@ -1222,10 +1226,6 @@ void handleReboot() {
     "</html>";
   returnHTML(html);
   matrix_display->clearScreen();
-  client_ip = {0,0,0,0};
-  sd_filename = "";
-  config_display_on = false;
-  tty_client = false;
   LittleFS.remove(gif_filename);
   ESP.restart();
 } /* handleReboot() */
@@ -1288,7 +1288,7 @@ void checkClientTimeout() {
   // Check if client who requested core image has gone away, if so clear screen
   if(client_ip != no_ip){
     if (ping_fail_count != 0){
-      if (ping_fail < ping_fail_count){
+      if (ping_fail <= ping_fail_count){
         if (millis() - last_seen >= 30*1000UL){
           last_seen = millis();
           bool success = Ping.ping(client_ip, 1);
