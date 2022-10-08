@@ -95,7 +95,7 @@ cd ${GIF_PATH}
 if [ "${GIF_UPDATE}" = "yes" ]; then
   wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
 else
-  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
+  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/128x32"
 fi
 if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then

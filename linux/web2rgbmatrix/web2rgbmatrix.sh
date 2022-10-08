@@ -54,25 +54,41 @@ senddata() {
   else
     dbug "Trying to send GIF to matrix"
     LTR=$(echo "${1:0:1}" | tr [a-z] [A-Z])
-    if [ -r ${GIF_PATH}/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
+    if [ -r ${GIF_PATH}/animated/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/animated/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
       case $HTTP_CODE in
         "200")
-          echo "Successfully copied ${GIF_PATH}/${LTR}/${1}.gif to matrix"
-          dbug "Successfully copied ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          echo "Successfully copied ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
+          dbug "Successfully copied ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
           ;;
         "500")
-          echo "Error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
-          dbug "Error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          echo "Error copying ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
+          dbug "Error copying ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
           ;;
         *)
-          echo "Unknown error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
-          dbug "Unknown error copying ${GIF_PATH}/${LTR}/${1}.gif to matrix"
+          echo "Unknown error copying ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
+          dbug "Unknown error copying ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
+          ;;
+      esac
+    elif [ -r ${GIF_PATH}/static/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/static/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
+      case $HTTP_CODE in
+        "200")
+          echo "Successfully copied ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
+          dbug "Successfully copied ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
+          ;;
+        "500")
+          echo "Error copying ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
+          dbug "Error copying ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
+          ;;
+        *)
+          echo "Unknown error copying ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
+          dbug "Unknown error copying ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
           ;;
       esac
     else                                                                     # CORENAME.gif file not found
-      echo "File ${GIF_PATH}/${LTR}/${1}.gif not found!"
-      dbug "File ${GIF_PATH}/${LTR}/${1}.gif not found!"
+      echo "File ${GIF_PATH}/static/${LTR}/${1}.gif not found!"
+      dbug "File ${GIF_PATH}/static/${LTR}/${1}.gif not found!"
       HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/text?line=${1} --output /dev/null --silent) # request Core Name as text
       case $HTTP_CODE in
         "200")
