@@ -44,13 +44,13 @@ Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using anothe
 
 **rgbmatrix SD Card Setup**
 
-Format an SD card as FAT and copy the "gifs" and "agifs" folders to its root.  The "agifs" folder contains animated GIFs while the "gifs" folder contains the static GIFs. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif. For animated GIFs its best for the last frame be the Core logo.
+Format an SD card as FAT and copy the "static" and "animated" folders to its root.  The "animated" folder contains animated GIFs while the "static" folder contains the static GIFs. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif. For animated GIFs its best for the last frame be the Core logo.
 
 Example SD card folder structure:
 
 ```
 .
-├── agifs
+├── animated
 │   ├── 0
 │   ├── 1
 │   │   └── 1944.gif
@@ -88,7 +88,7 @@ Example SD card folder structure:
 │   ├── X
 │   ├── Y
 │   └── Z
-└── gifs
+└── static
     ├── 0
     ├── 1
     │   └── 1944.gif
