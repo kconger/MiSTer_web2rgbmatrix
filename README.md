@@ -132,10 +132,9 @@ Example SD card folder structure:
 
 The wiring should look like the following and the enclosure is up to you. Details on my enclosure can be found [here](docs/Enclosure.md).
 ![matrix_rear_open](docs/images/matrix-rear-open.jpg "matrix_rear_open")
-![matrix_off](docs/images/matrix-off.jpg "matrix_off")
-![matrix_rear](docs/images/matrix-rear.jpg "matrix_rear")
 
 If your green and blue matrix colors are swapped, attach pin 2 to ground.
+![matrix_alt_pin_](docs/images/matrix-alt-pin.jpg "matrix_alt_pin_")
 
 **rgbmatrix Setup**
 
