@@ -33,7 +33,7 @@
 #include <WiFiClient.h>
 
 
-#define VERSION "2022109"
+#define VERSION "20221018"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
