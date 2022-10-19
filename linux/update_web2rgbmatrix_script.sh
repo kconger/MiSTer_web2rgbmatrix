@@ -50,7 +50,7 @@ echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
 
 
 # init script
-wget ${NODEBUG} "${REPOSITORY_URL}/linux/web2rgbmatrix/S60web2rgbmatrix" -O /tmp/S60web2rgbmatrix
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/S60web2rgbmatrix" -O /tmp/S60web2rgbmatrix
 if  ! [ -f ${INITSCRIPT} ]; then
   if  [ -f ${INITDISABLED} ]; then
     echo -e "${fyellow}Found disabled init script, skipping Install${freset}"
@@ -72,7 +72,7 @@ fi
 
 
 # daemon
-wget ${NODEBUG} "${REPOSITORY_URL}/linux/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
 if  ! [ -f ${DAEMONSCRIPT} ]; then
   echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
   mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
@@ -93,9 +93,9 @@ fi
 [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
 cd ${GIF_PATH}
 if [ "${GIF_UPDATE}" = "yes" ]; then
-  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
+  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --strip=2 "marquee_gifs-main/128x32"
 else
-  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "MiSTer_web2rgbmatrix-master/gifs"
+  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
 fi
 if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
@@ -112,10 +112,10 @@ fi
 cd /tmp
 if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${TRINITY_UPDATE}" = "yes" ]; then
-    LATEST=$(wget -q -O - "${REPOSITORY_URL}/releases/LATEST")
+    LATEST=$(wget -q -O - "${REPOSITORY_URL}${REPO_BRANCH}/releases/LATEST")
     CURRENT=$(wget -q -O - "${HOSTNAME}/version")
     if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
-      wget ${NODEBUG} "${REPOSITORY_URL}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
+      wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
       if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
         curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
       fi

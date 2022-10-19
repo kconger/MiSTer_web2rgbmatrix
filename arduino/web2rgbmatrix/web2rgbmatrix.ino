@@ -33,7 +33,7 @@
 #include <WiFiClient.h>
 
 
-#define VERSION "20221008"
+#define VERSION "20221018"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -68,10 +68,10 @@ String screensaver = DEFAULT_SCREENSAVER;
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
 
-#define DEFAULT_SD_GIF_FOLDER "/gifs/"
-char gif_folder[80] = DEFAULT_SD_GIF_FOLDER;
+#define DEFAULT_SD_STATIC_GIF_FOLDER "/static/"
+char gif_folder[80] = DEFAULT_SD_STATIC_GIF_FOLDER;
 
-#define DEFAULT_SD_ANIMATED_GIF_FOLDER "/agifs/"
+#define DEFAULT_SD_ANIMATED_GIF_FOLDER "/animated/"
 char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 
 #define DBG_OUTPUT_PORT Serial

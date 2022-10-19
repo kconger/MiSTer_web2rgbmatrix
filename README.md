@@ -34,6 +34,7 @@ Software
 - [Arduino IDE 2.0+](https://www.arduino.cc/en/software)
 - ESP32 Board Support Package 2.0+
 - Library Dependencies: [AnimatedGIF](https://github.com/bitbank2/AnimatedGIF), [ArduinoJson](https://github.com/bblanchon/ArduinoJson), [ESP32-HUB75-MatrixPanel-I2S](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA), [ESP32FTPServer](https://github.com/schreibfaul1/ESP32FTPServer), [ESP32Ping](https://github.com/marian-craciunescu/ESP32Ping), [ezTime](https://github.com/ropg/ezTime), [FastLED](https://github.com/FastLED/FastLED), [SdFat](https://github.com/greiman/SdFat), [TetrisAnimation](https://github.com/toblum/TetrisAnimation)
+- 128x32 resolution [Marquee GIFs](https://github.com/h3llb3nt/marquee_gifs) pack
 
 
 Install
@@ -44,13 +45,13 @@ Flash the Arduino sketch to the ESP32-Trinity using Arduino IDE. If using anothe
 
 **rgbmatrix SD Card Setup**
 
-Format an SD card as FAT and copy the "gifs" and "agifs" folders to its root.  The "agifs" folder contains animated GIFs while the "gifs" folder contains the static GIFs. GIFs must be 128x32px and the file names must match the core name exactly, ie. Minimig.gif. For animated GIFs its best for the last frame be the Core logo.
+Format an SD card as FAT.  For quickest setup copy the "static" and "animated" folders from the "128x32" folder on the [Marquee GIF Repo](https://github.com/h3llb3nt/marquee_gifs) to root of your SD card.  The update_web2rgbmatrix script has an option to install and update the GIFs on the rgbmatrix as well. Its slow and not recommended at this time.
 
 Example SD card folder structure:
 
 ```
 .
-├── agifs
+├── animated
 │   ├── 0
 │   ├── 1
 │   │   └── 1944.gif
@@ -88,7 +89,7 @@ Example SD card folder structure:
 │   ├── X
 │   ├── Y
 │   └── Z
-└── gifs
+└── static
     ├── 0
     ├── 1
     │   └── 1944.gif
@@ -168,8 +169,6 @@ Credits
 Inspired by the [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix) and [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) projects.
 
 Linux/MiSTer service code and update scripts from the [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled) project with modifications.
-
-Most GIFs are sourced from [the pixelcade art repo](https://github.com/alinke/pixelcade), [tty2rgbmatrix](https://github.com/h3llb3nt/tty2rgbmatrix), and [RPI2DMD GIF Thread](https://www.neo-arcadia.com/forum/viewtopic.php?t=67065)
 
 Plasma animation code from [here](https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-I2S-DMA/blob/master/examples/2_PatternPlasma/2_PatternPlasma.ino).
 
