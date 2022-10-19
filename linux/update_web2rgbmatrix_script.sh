@@ -93,9 +93,9 @@ fi
 [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
 cd ${GIF_PATH}
 if [ "${GIF_UPDATE}" = "yes" ]; then
-  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/master.tar.gz | tar xz --strip=2 "marquee_gifs-master/128x32"
+  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --strip=2 "marquee_gifs-main/128x32"
 else
-  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/master.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-master/128x32"
+  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
 fi
 if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
