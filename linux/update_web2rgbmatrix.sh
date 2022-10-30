@@ -74,6 +74,10 @@ fi
 
 ! [ -e /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
 
+# Fixup old config files
+sed -i 's/"no"/"false"/g' /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
+sed -i 's/"yes"/"true"/g' /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
+
 wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/linux/update_web2rgbmatrix_script.sh" -O "${SCRIPTNAME}"
 check4error "${?}"
 [ -s "${SCRIPTNAME}" ] && bash "${SCRIPTNAME}" "${1}"
