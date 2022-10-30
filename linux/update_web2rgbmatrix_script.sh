@@ -71,7 +71,7 @@ fi
 [[ -f /tmp/S60web2rgbmatrix ]] && rm /tmp/S60web2rgbmatrix
 
 
-# daemon
+# Update daemon
 wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
 if  ! [ -f ${DAEMONSCRIPT} ]; then
   echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
@@ -88,9 +88,8 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
-# GIFs
-# Check for and create web2rgbmatrix gifs folder
-if [["${SD_UPDATE}" = "true"] || ["${GIF_UPDATE}" = "true"]]; then
+# Update GIFs
+if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
   [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
   cd ${GIF_PATH}
   if ["${GIF_UPDATE}" = "true"]; then
@@ -99,7 +98,7 @@ if [["${SD_UPDATE}" = "true"] || ["${GIF_UPDATE}" = "true"]]; then
     wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
   fi
   if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
-    if [ "${SD_INSTALLED}" = "true" ] && [ "${SD_UPDATE}" = "true" ]; then
+    if [[ "${SD_INSTALLED}" = "true" && "${SD_UPDATE}" = "true" ]]; then
       cd ${GIF_PATH}/../
       find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
     else
