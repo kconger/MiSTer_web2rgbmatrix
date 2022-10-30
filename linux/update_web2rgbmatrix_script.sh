@@ -60,7 +60,7 @@ if  ! [ -f ${INITSCRIPT} ]; then
     chmod +x ${INITSCRIPT}
   fi
 elif ! cmp -s /tmp/S60web2rgbmatrix ${INITSCRIPT}; then
-  if [ "${SCRIPT_UPDATE}" = "yes" ]; then
+  if [ "${SCRIPT_UPDATE}" = "true" ]; then
     echo -e "${fyellow}Updating init script ${fmagenta}S60web2rgbmatrix${freset}"
     mv -f /tmp/S60web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
@@ -78,7 +78,7 @@ if  ! [ -f ${DAEMONSCRIPT} ]; then
   mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
   chmod +x ${DAEMONSCRIPT}
 elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
-  if [ "${SCRIPT_UPDATE}" = "yes" ]; then
+  if [ "${SCRIPT_UPDATE}" = "true" ]; then
     echo -e "${fyellow}Updating daemon script ${fmagenta}web2rgbmatrix${freset}"
     mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
     chmod +x ${DAEMONSCRIPT}
@@ -90,28 +90,30 @@ fi
 
 # GIFs
 # Check for and create web2rgbmatrix gifs folder
-[[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
-cd ${GIF_PATH}
-if [ "${GIF_UPDATE}" = "yes" ]; then
-  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --strip=2 "marquee_gifs-main/128x32"
-else
-  wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
-fi
-if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
-  if [ "${SD_INSTALLED}" = "true" ] && [ "${GIF_UPDATE}" = "yes" ]; then
-    cd ${GIF_PATH}/../
-    find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
+if [["${SD_UPDATE}" = "true"] || ["${GIF_UPDATE}" = "true"]]; then
+  [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
+  cd ${GIF_PATH}
+  if ["${GIF_UPDATE}" = "true"]; then
+    wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --strip=2 "marquee_gifs-main/128x32"
   else
-    echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
+    wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
   fi
-else
-  echo -e "${fblink}Skipping${fyellow} GIF SD Card update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
+  if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
+    if [ "${SD_INSTALLED}" = "true" ] && [ "${SD_UPDATE}" = "true" ]; then
+      cd ${GIF_PATH}/../
+      find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
+    else
+      echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
+    fi
+  else
+    echo -e "${fblink}Skipping${fyellow} GIF SD Card update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
+  fi
 fi
 
 # Update ESP32-Trinity
 cd /tmp
 if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
-  if [ "${TRINITY_UPDATE}" = "yes" ]; then
+  if [ "${TRINITY_UPDATE}" = "true" ]; then
     LATEST=$(wget -q -O - "${REPOSITORY_URL}${REPO_BRANCH}/releases/LATEST")
     CURRENT=$(wget -q -O - "${HOSTNAME}/version")
     if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
