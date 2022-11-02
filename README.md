@@ -9,7 +9,7 @@ Current features
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
 - Plays animated GIF then displays the static GIF if available
 - Displays a screen saver or blank screen if requesting client is off after a user-configurable threshold
-- Screen Savers: Blank, Tetris Clock, Plasma, and Starfield
+- Screen Savers: Blank, Tetris Clock, Plasma, Starfield, and Toasters
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
 - Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
@@ -175,3 +175,5 @@ Plasma animation code from [here](https://github.com/mrfaptastic/ESP32-HUB75-Mat
 Starfield animation code from [here](https://github.com/sinoia/oled-starfield)
 
 Tetris Clock code from [here](https://github.com/witnessmenow/ESP32-Trinity/tree/master/examples/Projects/WifiTetrisClock)
+
+Toast animation code from [here](https://learn.adafruit.com/animated-flying-toaster-oled-jewelry/code)

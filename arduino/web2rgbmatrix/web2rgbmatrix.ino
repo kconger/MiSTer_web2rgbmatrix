@@ -32,8 +32,10 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
+#include "bitmaps.h"
 
-#define VERSION "20221018"
+
+#define VERSION "20221101"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -62,7 +64,7 @@ String textcolor = DEFAULT_TEXT_COLOR;
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield
+#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield | Toaster
 String screensaver = DEFAULT_SCREENSAVER;
 
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
@@ -181,6 +183,14 @@ String lastDisplayedTime = "";
 String lastDisplayedAmPm = "";
 const int y_offset = (panelResY * panels_in_Y_chain) / 2;
 const int x_offset = (panelResX) / 2;
+
+// Toaster Screen Saver
+#define N_FLYERS   5 // Number of flying things
+struct Flyer {       // Array of flying things
+  int16_t x, y;      // Top-left position * 16 (for subpixel pos updates)
+  int8_t  depth;     // Stacking order is also speed, 12-24 subpixels/frame
+  uint8_t frame;     // Animation frame; Toasters cycle 0-3, Toast=255
+} flyer[N_FLYERS];
 
 void setup(void) {    
   DBG_OUTPUT_PORT.begin(115200);
@@ -324,6 +334,16 @@ void setup(void) {
   finishedAnimating = false;
   tetris.scale = 2;
 
+  //Initialize Toaster Screen Saver
+  randomSeed(analogRead(2));
+  for(uint8_t i=0; i<N_FLYERS; i++) {  // Randomize initial flyer states
+    flyer[i].x     = (-32 + random(160)) * 16;
+    flyer[i].y     = (-32 + random( 96)) * 16;
+    flyer[i].frame = random(3) ? random(4) : 255; // 66% toaster, else toast
+    flyer[i].depth = 10 + random(16);             // Speed / stacking order
+  }
+  qsort(flyer, N_FLYERS, sizeof(struct Flyer), compare); // Sort depths
+
   // Display boot status on matrix
   String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
   showText(display_string);
@@ -462,7 +482,7 @@ void handleSettings() {
     "<option value=\"Blank\"" + String((screensaver == "Blank") ? " selected" : "") + ">Blank</option>"
     "<option value=\"Clock\"" + String((screensaver == "Clock") ? " selected" : "") + ">Clock</option>"
     "<option value=\"Plasma\"" + String((screensaver == "Plasma") ? " selected" : "") + ">Plasma</option>"
-    "<option value=\"Starfield\"" + String((screensaver == "Starfield") ? " selected" : "") + ">Starfield</option>";
+    "<option value=\"Toasters\"" + String((screensaver == "Toasters") ? " selected" : "") + ">Toasters</option>";
 
   String tz_select_items =
     "<option value=\"Etc/GMT+12\"" + String((String(timezone) == "Etc/GMT+12") ? " selected" : "") + ">(GMT-12:00) International Date Line West</option>"
@@ -1315,6 +1335,7 @@ void checkClientTimeout() {
       if (screensaver == "Clock") clockScreenSaver(); // Clock
       if (screensaver == "Plasma") plasmaScreenSaver(); // Plasma
       if (screensaver == "Starfield") starfieldScreenSaver(); // Starfield
+      if (screensaver == "Toasters") toasterScreenSaver(); // Toasters
     }
   }
 } /* checkClientTimeout() */
@@ -1407,8 +1428,7 @@ void showTextLine(String text){
   byte g=(byte)(rgb>>8);
   byte b=(byte)(rgb);
 
-  //matrix_display->clearScreen();
-  matrix_display->fillScreen(0);
+  matrix_display->clearScreen();
   matrix_display->setTextColor(matrix_display->color565(r, g, b));
   matrix_display->setCursor(x, y);
   matrix_display->println(text);
@@ -1424,8 +1444,7 @@ void showText(String text){
   byte g=(byte)(rgb>>8);
   byte b=(byte)(rgb);
 
-  //matrix_display->clearScreen();
-  matrix_display->fillScreen(0);
+  matrix_display->clearScreen();
   matrix_display->setTextColor(matrix_display->color565(r, g, b));
   matrix_display->setCursor(0, 0);
   matrix_display->println(text);
@@ -1584,6 +1603,29 @@ void showGIF(const char *name, bool sd) {
   }
 } /* showGIF() */
 
+void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
+  if (width % 8 != 0) {
+    width =  ((width / 8) + 1) * 8;
+  }
+  for (int i = 0; i < width * height; i++ ) {
+    unsigned char charColumn = pgm_read_byte(xbm + i);
+    int swap = 0;
+    for (int j = 7; j >= 0; j--) {
+      //int targetX = (i * 8 + j) % width + x;
+      int targetX = (i * 8 + swap) % width + x;
+      int targetY = (8 * i / (width)) + y;
+      if (swap >= 7){
+        swap = 0;
+      } else {
+        swap++;
+      }
+      if (bitRead(charColumn, j)) {
+        matrix_display->drawPixel(targetX, targetY, color);
+      }
+    }
+  }
+} /* drawXbm565() */
+
 void plasmaScreenSaver() {
   for (int x = 0; x < (panelResX * panels_in_X_chain); x++) {
     for (int y = 0; y < (panelResY * panels_in_Y_chain); y++) {
@@ -1673,6 +1715,57 @@ void clockScreenSaver() {
     animationDue = now + animationDelay;
   }
 }
+
+void toasterScreenSaver() {
+  String hexcolor = textcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
+  uint8_t i, f;
+  int16_t x, y;
+  boolean resort = false;     // By default, don't re-sort depths
+
+  matrix_display->clearScreen();     // Start drawing next frame
+
+  for(i=0; i<N_FLYERS; i++) { // For each flyer...
+
+    // First draw each item...
+    f = (flyer[i].frame == 255) ? 4 : (flyer[i].frame++ & 3); // Frame #
+    x = flyer[i].x / 16;
+    y = flyer[i].y / 16;
+    drawXbm565(x, y, 32, 32, (const char *)mask[f], 0x0000);
+    drawXbm565(x, y, 32, 32, (const char *)img[f], matrix_display->color565(r, g, b));
+
+    // Then update position, checking if item moved off screen...
+    flyer[i].x -= flyer[i].depth * 2; // Update position based on depth,
+    flyer[i].y += flyer[i].depth;     // for a sort of pseudo-parallax effect.
+    if((flyer[i].y >= (64*16)) || (flyer[i].x <= (-32*16))) { // Off screen?
+      if(random(7) < 5) {         // Pick random edge; 0-4 = top
+        flyer[i].x = random(160) * 16;
+        flyer[i].y = -32         * 16;
+      } else {                    // 5-6 = right
+        flyer[i].x = 128         * 16;
+        flyer[i].y = random(64)  * 16;
+      }
+      flyer[i].frame = random(3) ? random(4) : 255; // 66% toaster, else toast
+      flyer[i].depth = 10 + random(16);
+      resort = true;
+    }
+  }
+  // If any items were 'rebooted' to new position, re-sort all depths
+  if(resort) qsort(flyer, N_FLYERS, sizeof(struct Flyer), compare);
+  delay(50);
+} /* toasterScreenSaver() */
+
+// Flyer depth comparison function for qsort()
+static int compare(const void *a, const void *b) {
+  return ((struct Flyer *)a)->depth - ((struct Flyer *)b)->depth;
+} /* compare */
 
 // This method is for controlling the tetris library draw calls
 void animationHandler() {
