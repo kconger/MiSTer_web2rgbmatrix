@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221101"
+#define VERSION "20221107"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -64,8 +64,11 @@ String textcolor = DEFAULT_TEXT_COLOR;
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
 
-#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield | Toaster
+#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield | Toasters
 String screensaver = DEFAULT_SCREENSAVER;
+
+#define DEFAULT_SCREENSAVER_COLOR "#FFFFFF" // White
+String accentcolor = DEFAULT_SCREENSAVER_COLOR;
 
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
 int ping_fail_count = DEFAULT_PING_FAIL_COUNT;
@@ -388,6 +391,7 @@ bool parseConfig() {
   brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
   textcolor = doc["textcolor"] | DEFAULT_TEXT_COLOR;
   screensaver = doc["screensaver"] | DEFAULT_SCREENSAVER;
+  accentcolor = doc["accentcolor"] | DEFAULT_SCREENSAVER_COLOR;
   twelvehour = doc["twelvehour"] | DEFAULT_TWELVEHOUR;
   strlcpy(timezone, doc["timezone"] | DEFAULT_TIMEZONE, sizeof(timezone));
        
@@ -482,6 +486,7 @@ void handleSettings() {
     "<option value=\"Blank\"" + String((screensaver == "Blank") ? " selected" : "") + ">Blank</option>"
     "<option value=\"Clock\"" + String((screensaver == "Clock") ? " selected" : "") + ">Clock</option>"
     "<option value=\"Plasma\"" + String((screensaver == "Plasma") ? " selected" : "") + ">Plasma</option>"
+    "<option value=\"Starfield\"" + String((screensaver == "Starfield") ? " selected" : "") + ">Starfield</option>"
     "<option value=\"Toasters\"" + String((screensaver == "Toasters") ? " selected" : "") + ">Toasters</option>";
 
   String tz_select_items =
@@ -611,6 +616,8 @@ void handleSettings() {
     + saver_select_items +
     "</select>"
     "<br><br>"
+    "<label for=\"accentcolor\">Accent Color</label>"
+    "<input type=\"color\" id=\"accentcolor\" name=\"accentcolor\" value=\"" + accentcolor + "\">"
     "<label for=\"timeout\">Client Timeout(Minutes)</label>"
     "<input type=\"number\" id=\"timeout\" name=\"timeout\" min=\"0\" max=\"60\" value=" + (ping_fail_count / 2) + ">"
     "<label for=\"timezone\">Timezone</label><br>"
@@ -647,6 +654,8 @@ void handleSettings() {
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
       screensaver = server.arg("screensaver");
+      accentcolor = server.arg("accentcolor");
+      accentcolor.replace("%23", "#");
       String tz = server.arg("timezone");
       tz.replace("%2F", "/");
       tz.toCharArray(timezone, sizeof(timezone));
@@ -664,6 +673,7 @@ void handleSettings() {
       doc["brightness"] = server.arg("brightness").toInt();
       doc["textcolor"] = textcolor;
       doc["screensaver"] = screensaver;
+      doc["accentcolor"] = accentcolor;
       doc["timezone"] = timezone;
       doc["twelvehour"] = twelvehour;
       File config_file = LittleFS.open(config_filename, FILE_WRITE);
@@ -1651,6 +1661,15 @@ void plasmaScreenSaver() {
 } /* plasmaScreenSaver() */
 
 void starfieldScreenSaver() {
+  String hexcolor = accentcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
   bufferClear(matrix_buffer);
 
   int origin_x = (panelResX * panels_in_X_chain) / 2;
@@ -1682,9 +1701,9 @@ void starfieldScreenSaver() {
       for (int xplus = 0; xplus < size; xplus++) {
         for (int yplus = 0; yplus < size; yplus++) {
           if ((((y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)) < (panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain))) {
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].r=255;
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].g=255;
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].b=255;
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].r=r;
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].g=g;
+            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].b=b;
           }
         }
       }
@@ -1717,7 +1736,7 @@ void clockScreenSaver() {
 }
 
 void toasterScreenSaver() {
-  String hexcolor = textcolor;
+  String hexcolor = accentcolor;
   hexcolor.replace("#","");
   char charbuf[8];
   hexcolor.toCharArray(charbuf,8);
