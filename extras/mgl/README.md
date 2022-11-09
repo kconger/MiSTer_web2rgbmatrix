@@ -2,10 +2,6 @@ These are some [MiSTer MGL](https://mister-devel.github.io/MkDocs_MiSTer/advance
 
 Current Cores
 -------
-- ATARI2600 using the ATARI7800 core
-- GameGear using the SMS core
-- MegaDuck using the Gameboy core
-- SG-1000 using the ColecoVision core
 - SuperGrafx using the TG16 core
 
 Install
