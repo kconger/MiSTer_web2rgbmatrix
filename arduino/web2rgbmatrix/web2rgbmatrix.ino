@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221107"
+#define VERSION "20221109"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -63,6 +63,9 @@ String textcolor = DEFAULT_TEXT_COLOR;
 
 #define DEFAULT_BRIGHTNESS 255
 uint8_t brightness = DEFAULT_BRIGHTNESS;
+
+#define DEFAULT_GIF_PLAYBACK "Both" // Animated | Static | Both | Fallback
+String playback = DEFAULT_GIF_PLAYBACK;
 
 #define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield | Toasters
 String screensaver = DEFAULT_SCREENSAVER;
@@ -482,6 +485,12 @@ void handleRoot() {
 } /* handleRoot() */
 
 void handleSettings() {
+  String playback_select_items =
+    "<option value=\"Animated\"" + String((playback == "Animated") ? " selected" : "") + ">Animated</option>"
+    "<option value=\"Static\"" + String((playback == "Static") ? " selected" : "") + ">Static</option>"
+    "<option value=\"Both\"" + String((playback == "Both") ? " selected" : "") + ">Animated then Static</option>"
+    "<option value=\"Fallback\"" + String((playback == "Fallback") ? " selected" : "") + ">Static Fallback</option>";
+
   String saver_select_items =
     "<option value=\"Blank\"" + String((screensaver == "Blank") ? " selected" : "") + ">Blank</option>"
     "<option value=\"Clock\"" + String((screensaver == "Clock") ? " selected" : "") + ">Clock</option>"
@@ -609,6 +618,11 @@ void handleSettings() {
     "<input type=\"color\" id=\"textcolor\" name=\"textcolor\" value=\"" + textcolor + "\">"
     "<label for=\"brightness\">LED Brightness</label>"
     "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
+    "<label for=\"playback\">GIF Playback</label><br>"
+    "<br>"
+    "<select id=\"playback\" name=\"playback\" value=\"" + playback + "\">"
+    + playback_select_items +
+    "</select>"
     "<h3>Screen Saver Settings</h3>"
     "<label for=\"screensaver\">Screen Saver</label><br>"
     "<br>"
@@ -653,6 +667,7 @@ void handleSettings() {
       }
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
+      playback = server.arg("playback");
       screensaver = server.arg("screensaver");
       accentcolor = server.arg("accentcolor");
       accentcolor.replace("%23", "#");
@@ -672,6 +687,7 @@ void handleSettings() {
       doc["timeout"] = (server.arg("timeout").toInt() * 2);
       doc["brightness"] = server.arg("brightness").toInt();
       doc["textcolor"] = textcolor;
+      doc["playback"] = playback;
       doc["screensaver"] = screensaver;
       doc["accentcolor"] = accentcolor;
       doc["timezone"] = timezone;
@@ -1101,25 +1117,33 @@ void handleLocalPlay(){
         LittleFS.remove(gif_filename);
         String letter_folder(server.arg("file").charAt(0));
         letter_folder.toUpperCase();
-        // Check for and play animated GIF
-        String agif_fullpath = String(animated_gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
-        const char *agif_requested_filename = agif_fullpath.c_str();
-        if (SD.exists(agif_requested_filename)) {
-          returnHTML(start_html + "Displaying Animated GIF: " + agif_fullpath + " For: " + client_ip.toString() + end_html);
-          sd_filename = agif_fullpath;
-          showGIF(agif_requested_filename, true);
+        bool gif_found = false;
+        if (playback != "Static") {
+          // Check for and play animated GIF
+          String agif_fullpath = String(animated_gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
+          const char *agif_requested_filename = agif_fullpath.c_str();
+          if (SD.exists(agif_requested_filename)) {
+            sd_filename = agif_fullpath;
+            returnHTML(start_html + "Displaying GIF: " + sd_filename + end_html);
+            showGIF(agif_requested_filename, true);
+            gif_found = true;
+          }
         }
-        // Check for and play static GIF
-        String fullpath = String(gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
-        const char *requested_filename = fullpath.c_str();
-        if (!SD.exists(requested_filename)) {
-          returnHTTPError(404, "File Not Found");
+        if (playback != "Animated") {
+          // Check for and play static GIF
+          String fullpath = String(gif_folder) + String(letter_folder) + "/" + server.arg("file") + ".gif";
+          const char *requested_filename = fullpath.c_str();
+          if (SD.exists(requested_filename)) {
+            sd_filename = fullpath;
+            returnHTML(start_html + "Displaying GIF: " + sd_filename + end_html);
+            showGIF(requested_filename, true);
+            gif_found = true;
+          }
+        }
+        if(!gif_found) {
           sd_filename = "";
+          returnHTTPError(404, "File Not Found");
           showTextLine(server.arg("file"));
-        } else {
-          returnHTML(start_html + "Displaying GIF: " + fullpath + end_html);
-          sd_filename = fullpath;
-          showGIF(requested_filename, true);
         }
       } else {
         returnHTTPError(405, "Method Not Allowed");
@@ -1366,25 +1390,31 @@ void checkSerialClient() {
       sd_filename = "";
       LittleFS.remove(gif_filename);
       client_ip = {0,0,0,0};
+      bool gif_found = false;
       if (card_mounted) {
-        // Check for and play animated GIF
-        String agif_fullpath = String(animated_gif_folder) + server.arg("file").charAt(0) + "/" + server.arg("file") + ".gif";
-        const char *agif_requested_filename = agif_fullpath.c_str();
-        if (SD.exists(agif_requested_filename)) {
-          sd_filename = agif_fullpath;
-          showGIF(agif_requested_filename, true);
+        if (playback != "Static") {
+          // Check for and play animated GIF
+          String agif_fullpath = String(animated_gif_folder) + new_command.charAt(0) + "/" + new_command + ".gif";
+          const char *agif_requested_filename = agif_fullpath.c_str();
+          if (SD.exists(agif_requested_filename)) {
+            sd_filename = agif_fullpath;
+            showGIF(agif_requested_filename, true);
+            gif_found = true;
+          }
         }
-        // Check for and play static GIF
-        String fullpath = String(gif_folder) + new_command.charAt(0) + "/" + new_command + ".gif";
-        const char *requested_filename = fullpath.c_str();
-        if (SD.exists(requested_filename)) {
-          sd_filename = fullpath;
-          showGIF(requested_filename, true);
-        } else {
-          sd_filename = "";
-          showTextLine(new_command);
+        if (playback != "Animated") {
+          // Check for and play static GIF
+          String fullpath = String(gif_folder) + new_command.charAt(0) + "/" + new_command + ".gif";
+          const char *requested_filename = fullpath.c_str();
+          if (SD.exists(requested_filename)) {
+            sd_filename = fullpath;
+            showGIF(requested_filename, true);
+            gif_found = true;
+          }
         }
-      } else {
+      }
+      if(!gif_found) {
+        sd_filename = "";
         showTextLine(new_command);
       }
     }

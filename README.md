@@ -7,7 +7,7 @@ Current features
 -------
 - Display active MiSTer Core logo, or text if not available.
 - Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
-- Plays animated GIF then displays the static GIF if available
+- Plays animated, static or both types of GIFs
 - Displays a screen saver or blank screen if requesting client is off after a user-configurable threshold
 - Screen Savers: Blank, Tetris Clock, Plasma, Starfield, and Toasters
 - Displays network and SD card status at boot for 1 minute
