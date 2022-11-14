@@ -6,19 +6,19 @@
 Current features
 -------
 - Display active MiSTer Core logo, or text if not available.
-- Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer.
-- Plays animated, static or both types of GIFs
+- Store GIFs on an SD Card or on the MiSTer, storing on the MiSTer introduces a delay due to the transfer
+- Plays animated, static, or both GIFs if available
 - Displays a screen saver or blank screen if requesting client is off after a user-configurable threshold
-- Screen Savers: Blank, Tetris Clock, Plasma, Starfield, and Toasters
+- [Screen Savers](docs/ScreenSavers.md): Blank, [Tetris Clock](docs/images/matrix-tetrisclock.gif), [Plasma](docs/images/matrix-plasma.gif), [Starfield](docs/images/matrix-starfield.gif), and [Toasters](docs/images/matrix-toasters.gif)
 - Displays network and SD card status at boot for 1 minute
 - MiSTer: Update Script
-- Web: Status display of Wifi, SD Card, loaded GIF, settings and connected client
+- Web: Display status of Wifi, SD Card, loaded GIF, settings and connected client
 - Web: Settings for Wifi, matrix text color, matrix brightness, screen saver, and client timeout 
 - Web: GIF uploads to SD Card
 - Web: File Browser
 - Web: OTA updates
-- FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection.
-- Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card.
+- FTP: FTP Server for file uploads, FTP client must be set to only use 1 connection
+- Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card
 - Serial: Debug output
 
 Requirements
