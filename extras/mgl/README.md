@@ -2,7 +2,8 @@ These are some [MiSTer MGL](https://mister-devel.github.io/MkDocs_MiSTer/advance
 
 Current Cores
 -------
-- SuperGrafx using the TG16 core
+- SG-1000 using the Colecovision core, set name SG1000
+- SuperGrafx using the TG16 core, set name SuperGrafx
 
 Install
 -------
