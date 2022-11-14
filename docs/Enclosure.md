@@ -5,7 +5,7 @@ The display pictured in this repo was built using the following materials.
 - 330x90x3mm matte diffusing acrylic from [here](https://www.tapplastics.com/product/plastics/cut_to_size_plastic/black_led_sheet/668)
 - 8x M3 brass heatset inserts
 - 12x M3x5mm pan head screws
-- 3D printed parts in this folder, printed two of each [block parts](docs/models/)
+- 3D printed parts in this folder, printed two of each [block parts](docs/models)
 - [ESP32-Trinity](https://esp32trinity.com/) 
 - (2) 64x32 HUB75 compatible RGB matrix from [here](https://www.aliexpress.com/item/3256801502846969.html)
 - SD Card module from [here](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
