@@ -36,11 +36,11 @@ dbug() {
 senddata() {
   if [ "${SD_INSTALLED}" = "true" ]; then
     dbug "Requesting matrix to display GIF from its SD Card File"
-    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${1} --output /dev/null --silent) # request CORENAME.gif
+    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${1} --output /dev/null --silent) # request CORENAME
     case $HTTP_CODE in
       "200")
-        echo "Successfully requested ${1} GIF"
-        dbug "Successfully requested ${1} GIF"
+        echo "Successfully requested ${1}"
+        dbug "Successfully requested ${1}"
         ;;
       "404")
         echo "${1} GIF not found on matrix SD"
