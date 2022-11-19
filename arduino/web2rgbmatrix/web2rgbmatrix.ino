@@ -666,6 +666,7 @@ void handleSettings() {
       } else {
         matrix_brightness = (server.arg("brightness").toInt());
       }
+      matrix_display->setBrightness8(matrix_brightness);
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
       playback = server.arg("playback");
@@ -706,8 +707,8 @@ void handleSettings() {
         "</head>"
         "<body>"
         "<form>"
-        "<p>Settings saved, you must reboot for some settings to take effect.</p>"
-        "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/';\" value=\"Back\" />"
+        "<p>Settings saved, you must reboot for WiFi changes to take effect.</p>"
+        "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/settings';\" value=\"Back\" />"
         "<input type=\"button\" class=cautionbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
         "</form>"
         "</body>"
