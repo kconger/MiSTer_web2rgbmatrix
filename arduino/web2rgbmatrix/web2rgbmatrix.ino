@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221109"
+#define VERSION "20221119"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -62,7 +62,7 @@ char hostname[80] = DEFAULT_HOSTNAME;
 String textcolor = DEFAULT_TEXT_COLOR;
 
 #define DEFAULT_BRIGHTNESS 255
-uint8_t brightness = DEFAULT_BRIGHTNESS;
+uint8_t matrix_brightness = DEFAULT_BRIGHTNESS;
 
 #define DEFAULT_GIF_PLAYBACK "Both" // Animated | Static | Both | Fallback
 String playback = DEFAULT_GIF_PLAYBACK;
@@ -391,8 +391,9 @@ bool parseConfig() {
   strlcpy(ssid, doc["ssid"] | DEFAULT_SSID, sizeof(ssid));
   strlcpy(password, doc["password"] | DEFAULT_PASSWORD, sizeof(password));
   ping_fail_count = doc["timeout"] | DEFAULT_PING_FAIL_COUNT;
-  brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
+  matrix_brightness = doc["brightness"] | DEFAULT_BRIGHTNESS;
   textcolor = doc["textcolor"] | DEFAULT_TEXT_COLOR;
+  playback = doc["playback"] | DEFAULT_GIF_PLAYBACK;
   screensaver = doc["screensaver"] | DEFAULT_SCREENSAVER;
   accentcolor = doc["accentcolor"] | DEFAULT_SCREENSAVER_COLOR;
   twelvehour = doc["twelvehour"] | DEFAULT_TWELVEHOUR;
@@ -617,7 +618,7 @@ void handleSettings() {
     "<label for=\"textcolor\">Text Color</label>"
     "<input type=\"color\" id=\"textcolor\" name=\"textcolor\" value=\"" + textcolor + "\">"
     "<label for=\"brightness\">LED Brightness</label>"
-    "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + brightness + ">"
+    "<input type=\"number\" id=\"brightness\" name=\"brightness\" min=\"0\" max=\"255\" value=" + matrix_brightness + ">"
     "<label for=\"playback\">GIF Playback</label><br>"
     "<br>"
     "<select id=\"playback\" name=\"playback\" value=\"" + playback + "\">"
@@ -661,9 +662,9 @@ void handleSettings() {
         ping_fail_count = (server.arg("timeout").toInt() * 2);
       }
       if (server.arg("brightness") == "0"){
-        brightness = 0;
+        matrix_brightness = 0;
       } else {
-        brightness = (server.arg("brightness").toInt());
+        matrix_brightness = (server.arg("brightness").toInt());
       }
       textcolor = server.arg("textcolor");
       textcolor.replace("%23", "#");
@@ -1447,7 +1448,7 @@ void displaySetup() {
 
   matrix_display = new MatrixPanel_I2S_DMA(mxconfig);
   matrix_display->begin();
-  matrix_display->setBrightness8(brightness); //0-255
+  matrix_display->setBrightness8(matrix_brightness);
   matrix_display->clearScreen();
 } /* displaySetup() */
 

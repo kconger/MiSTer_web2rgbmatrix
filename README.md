@@ -7,7 +7,7 @@ Current Features
 -------
 - Matrix: Display animated or static GIFs from SD card or by HTTP POST 
 - Matrix: Display text by request
-- Matrix:[Screen Savers](docs/ScreenSavers.md): Blank, [Tetris Clock](docs/images/matrix-tetrisclock.gif), [Plasma](docs/images/matrix-plasma.gif), [Starfield](docs/images/matrix-starfield.gif), and [Toasters](docs/images/matrix-toasters.gif)
+- Matrix: [Screen Savers](docs/ScreenSavers.md): Blank, [Tetris Clock](docs/images/matrix-tetrisclock.gif), [Plasma](docs/images/matrix-plasma.gif), [Starfield](docs/images/matrix-starfield.gif), and [Toasters](docs/images/matrix-toasters.gif)
 - Web: Display status of Wifi, SD Card, loaded GIF, settings and connected client
 - Web: Settings for Wifi, matrix text color, matrix brightness, screen saver, and client timeout 
 - Web: SD Card File Browser with upload support
