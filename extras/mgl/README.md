@@ -10,6 +10,6 @@ Install
 
 Copy the mgl files to the _Console and _Computer directories in /media/fat/.
 
-Make directories with the same name in your MiSTer games/ and docs/ directories. ie games/GameGear/ & docs/GameGear/
+Make directories with the same name in your MiSTer games/ and docs/ directories. ie games/SuperGrafx/ & docs/SuperGrafx/
 
 Add your roms and manuals to these new directories.

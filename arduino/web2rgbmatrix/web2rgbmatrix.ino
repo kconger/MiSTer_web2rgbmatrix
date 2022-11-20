@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221119"
+#define VERSION "20221120"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -707,7 +707,7 @@ void handleSettings() {
         "</head>"
         "<body>"
         "<form>"
-        "<p>Settings saved, you must reboot for WiFi changes to take effect.</p>"
+        "<p>Settings saved, you must reboot for WiFi and timezone changes to take effect.</p>"
         "<input id='back-button' type=\"button\" class=btn onclick=\"location.href='/settings';\" value=\"Back\" />"
         "<input type=\"button\" class=cautionbtn onclick=\"location.href='/reboot';\" value=\"Reboot\" />"
         "</form>"
