@@ -1,8 +1,0 @@
-#!/bin/sh
-
-set -e 
-
-update-rc.d web2rgbmatrix defaults
-service web2rgbmatrix start
-
-exit 0

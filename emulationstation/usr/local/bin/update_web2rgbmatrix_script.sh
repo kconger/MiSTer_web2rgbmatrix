@@ -23,47 +23,6 @@ echo -e "${fgreen}web2rgbmatrix update script"
 echo -e "----------------------${freset}"
 echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
 
-
-# init script
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/web2rgbmatrix/web2rgbmatrix" -O /tmp/Sweb2rgbmatrix
-if  ! [ -f ${INITSCRIPT} ]; then
-  if  [ -f ${INITDISABLED} ]; then
-    echo -e "${fyellow}Found disabled init script, skipping Install${freset}"
-  else
-    echo -e "${fyellow}Installing init script ${fmagenta}web2rgbmatrix${freset}"
-    mv -f /tmp/Sweb2rgbmatrix ${INITSCRIPT}
-    chmod +x ${INITSCRIPT}
-  fi
-elif ! cmp -s /tmp/Sweb2rgbmatrix ${INITSCRIPT}; then
-  if [ "${SCRIPT_UPDATE}" = "true" ]; then
-    echo -e "${fyellow}Updating init script ${fmagenta}S60web2rgbmatrix${freset}"
-    mv -f /tmp/Sweb2rgbmatrix ${INITSCRIPT}
-    chmod +x ${INITSCRIPT}
-  else
-    echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
-  fi
-fi
-[[ -f /tmp/Sweb2rgbmatrix ]] && rm /tmp/Sweb2rgbmatrix
-
-sudo update-rc.d web2rgbmatrix defaults
-
-# Update daemon
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
-if  ! [ -f ${DAEMONSCRIPT} ]; then
-  echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
-  mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
-  chmod +x ${DAEMONSCRIPT}
-elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
-  if [ "${SCRIPT_UPDATE}" = "true" ]; then
-    echo -e "${fyellow}Updating daemon script ${fmagenta}web2rgbmatrix${freset}"
-    mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
-    chmod +x ${DAEMONSCRIPT}
-  else
-    echo -e "${fblink}Skipping${fyellow} available daemon script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
-  fi
-fi
-[[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
-
 # Update GIFs
 if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
   [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
@@ -104,14 +63,6 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
   fi
 else
   echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
-fi
-
-if [ $(pidof ${DAEMONNAME}) ]; then
-  echo -e "${fgreen}Restarting init script\n${freset}"
-  ${INITSCRIPT} restart
-else
-  echo -e "${fgreen}Starting init script\n${freset}"
-  ${INITSCRIPT} start
 fi
 
 [ -z "${SSH_TTY}" ] && echo -e "${fgreen}Press any key to continue\n${freset}"

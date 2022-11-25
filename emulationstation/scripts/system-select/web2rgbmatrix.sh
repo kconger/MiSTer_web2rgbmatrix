@@ -3,4 +3,4 @@
 . /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
 SYSTEM=$1
-echo "$SYSTEM" > $CORENAMEFILE
+senddata "$SYSTEM"
