@@ -33,3 +33,20 @@ sudo update-rc.d web2rgbmatrix defaults
 ```
 service web2rgbmatrix start
 ```
+
+dpkg Install
+-------
+
+```
+dpkg -i web2rgbmatrix*.deb
+```
+
+**Modify Configuration**
+
+Modify your /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include your rgbmatrix IP or hostname.
+
+**Restart Service**
+```
+service web2rgbmatrix restart
+```
+
