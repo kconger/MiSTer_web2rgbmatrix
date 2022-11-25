@@ -15,4 +15,5 @@ cp -rpf usr/local/bin/* /usr/local/bin/
 ```
 
 **Modify Configuration**
+
 Edit /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include rgbmatrix IP or Hostname

@@ -17,9 +17,10 @@ Current Features
 - Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card
 - Serial: Debug output
 - MiSTer: [MiSTer FPGA](https://github.com/MiSTer-devel) Linux service that displays an animated and/or static GIF logo of the current running core.
-- MiSTer: Text fallback for missing GIFs
-- MiSTer: Store GIFs on MiSTer, storing on the MiSTer introduces a playback delay due to the transfer
-- MiSTer: Update Script
+- RetroPie: Emulationstation scripts to display selected system
+- MiSTer/RetroPie: Text fallback for missing GIFs
+- MiSTer/RetroPie: Store GIFs on system, storing on the requesting system introduces a playback delay due to the transfer
+- MiSTer/RetroPie: Update Script
 
 Requirements
 -------
