@@ -37,6 +37,13 @@ service web2rgbmatrix start
 dpkg Install
 -------
 
+**Build dpkg**
+```
+cd build
+./make_dpkg.sh
+```
+
+**Install dpkg**
 ```
 dpkg -i web2rgbmatrix*.deb
 ```
