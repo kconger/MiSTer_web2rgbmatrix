@@ -1,73 +1,27 @@
-###############################################################################
+#!/bin/sh
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# You can download the latest version of this script from:
+# https://github.com/kconger/MiSTer_web2rgbmatrix
+
 #
-# web2rgbmatrix for Emulationstation
+# web2rgbmatrix service
 #
-###############################################################################
 
-###############################################################################
-#
-# Start of user options
-#
-# The following are user configurable, copy and edit in the web2rgbmatrix-user.ini
-#
-###############################################################################
-# rgbmatrix hostname or IP, RetroPie does not support MDNS resolution by default
-HOSTNAME="rgbmatrix.local"
+. /etc/web2rgbmatrix/web2rgbmatrix-system.ini
+. /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
-# Set to true if matrix has a SD Card installed
-SD_INSTALLED="true"
-
-# SD GIF Update
-SD_UPDATE="false"
-
-# Path to GIF files
-GIF_PATH="/home/pi/web2rgbmatrix/gifs"
-
-# Update Linux scripts
-SCRIPT_UPDATE="true"
-
-# Update ESP32-Trinity
-TRINITY_UPDATE="false"
-
-# GIF Update, forces overwrite of exisiting GIFs
-GIF_UPDATE="false"
-
-# Debugging
-DEBUG="false"
-
-###############################################################################
-# End of user options
-###############################################################################
-
-###############################################################################
-# System Variables below this line, shouldn't need to be modified.
-###############################################################################
-REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/"
-REPO_BRANCH="master"
-WEB2RGBMATRIX_PATH="/etc/web2rgbmatrix"
-DEBUGFILE="/tmp/web2rgbmatrix"
-
-fblink="\e[5m"
-fbold="\e[1m"
-fdim="\e[2m"
-freset="\e[0m\033[0m"
-finvers="\e[7m"
-fhidden="\e[8m"
-funderl="\e[4m"
-fblue="\e[1;34m"
-fgreen="\e[1;32m"
-fcyan="\e[1;36m"
-fred="\e[1;31m"
-fmagenta="\e[1;35m"
-fyellow="\e[1;33m"
-fwhite="\e[1;37m"
-fgrey="\e[1;30m"
-chide="\e[?25l"
-cshow="\e[?25h"
-
-###############################################################################
-# System Functions below this line, shouldn't need to be modified.
-###############################################################################
 # Debug function
 dbug() {
   if [ "${DEBUG}" = "true" ]; then
@@ -153,3 +107,27 @@ senddata() {
     fi
   fi     
 }
+
+while true; do                                                                # main loop
+  if [ -r ${CORENAMEFILE} ]; then                                             # proceed if file exists and is readable (-r)
+    NEWCORE=$(cat ${CORENAMEFILE})                                            # get CORENAME
+    echo "Read CORENAME: -${NEWCORE}-"
+    dbug "Read CORENAME: -${NEWCORE}-"
+    if [ "${NEWCORE}" != "${OLDCORE}" ]; then                                 # proceed only if Core has changed
+      senddata "${NEWCORE}"                                                   # The "Magic"
+      OLDCORE="${NEWCORE}"                                                    # update oldcore variable
+    fi                                                                        # end if core check
+    if [ "${DEBUG}" = "false" ]; then
+      # wait here for next change of corename, -qq for quietness
+      inotifywait -qq -e modify "${CORENAMEFILE}"
+    fi
+    if [ "${DEBUG}" = "true" ]; then
+      # but not -qq when debugging
+      inotifywait -e modify "${CORENAMEFILE}"
+    fi
+  else                                                                        # CORENAME file not found
+   echo "File ${CORENAMEFILE} not found!"
+   dbug "File ${CORENAMEFILE} not found!"
+  fi                                                                          # end if /tmp/CORENAME check
+done
+# ** End Main **

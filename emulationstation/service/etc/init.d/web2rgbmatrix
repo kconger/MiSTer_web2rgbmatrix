@@ -1,0 +1,46 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides: web2rgbmatrix
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# Default-Start:     3 4 5
+# Default-Stop:      0 1 2 6
+# Short-Description: Start web2rgbmatrix daemons
+### END INIT INFO
+#
+# web2rgbmatrix Daemon Script
+#
+
+. /etc/web2rgbmatrix/web2rgbmatrix-system.ini
+
+# Start
+start() {
+    if [ -x ${DAEMONSCRIPT} ]; then
+      echo "Starting ${DAEMONNAME}..."
+      ${DAEMONSCRIPT} &
+    else
+      echo "${DAEMONSCRIPT} not found!"
+    fi
+}
+
+# Stop
+stop() {
+    echo "Stopping ${DAEMONNAME}..."
+    killall ${DAEMONNAME}
+}
+
+case "$1" in
+  start)
+        start
+        ;;
+  stop) 
+        stop
+        ;;
+  restart)
+        stop
+        start
+        ;;
+  *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac
