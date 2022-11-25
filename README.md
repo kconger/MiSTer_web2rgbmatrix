@@ -16,8 +16,7 @@ Current Features
 - FTP: FTP Server for SD card file management
 - Serial: [MiSTer_tty2x](https://github.com/venice1200/MiSTer_tty2x) service support, requires GIFs installed on rgbmatrix SD Card
 - Serial: Debug output
-- MiSTer: [MiSTer FPGA](https://github.com/MiSTer-devel) Linux service that displays an animated and/or static GIF logo of the current running core.
-- RetroPie: Emulationstation scripts to display selected system
+- MiSTer/RetroPie: [MiSTer FPGA](https://github.com/MiSTer-devel) Linux service that displays an animated and/or static GIF logo of the current running core.
 - MiSTer/RetroPie: Text fallback for missing GIFs
 - MiSTer/RetroPie: Store GIFs on system, storing on the requesting system introduces a playback delay due to the transfer
 - MiSTer/RetroPie: Update Script
