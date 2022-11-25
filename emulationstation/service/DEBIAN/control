@@ -1,0 +1,6 @@
+Package: web2rgbmatrix
+Version: 20221125
+Architecture: all
+Depends: inotify-tools
+Maintainer: Keith Conger <keith.conger@gmail.com>
+Description: Display Emulationstation Marquees

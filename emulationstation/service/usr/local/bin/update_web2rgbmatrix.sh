@@ -26,7 +26,7 @@ REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/"
 REPO_BRANCH="master"
 
 FRONTEND="emulationstation"
-SCRIPT_PATH="/etc/web2rgbmatrix/"
+SCRIPT_PATH="/usr/local/bin/"
 
 SCRIPTNAME="/tmp/update_web2rgbmatrix_script.sh"
 NODEBUG="-q -o /dev/null"
@@ -75,7 +75,7 @@ if [ "${?}" -gt "0" ]; then
     . "${WEB2RGBMATRIX_PATH}/web2rgbmatrix-system.ini"
 fi
 
-! [ -e web2rgbmatrix-user.ini ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
+! [ -e web2rgbmatrix-user.ini ] && touch ${WEB2RGBMATRIX_PATH}/web2rgbmatrix-user.ini
 
 # Fixup old config files
 sed -i 's/"no"/"false"/g' ${SCRIPT_PATH}web2rgbmatrix-user.ini

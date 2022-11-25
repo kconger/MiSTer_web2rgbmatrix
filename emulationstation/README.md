@@ -1,5 +1,8 @@
 # RetroPie Setup Instructions
 
+Manual Install
+-------
+
 **Install dependencies**
 ```
 sudo apt-get install inotify-tools
@@ -10,9 +13,11 @@ sudo apt-get install inotify-tools
 cp -rpf scripts /home/pi/.emulationstation/
 ```
 
-**Install Init Script**
+**Install Files**
 ```
-cp -rpf web2rgbmatrix /etc/init.d/
+cp -rpf etc/web2rgbmatrix /etc/
+cp -rpf usr/local/bin/* /usr/local/bin/
+cp -rpf etc/init.d/web2rgbmatrix /etc/init.d/
 ```
 
 **Enable Service**

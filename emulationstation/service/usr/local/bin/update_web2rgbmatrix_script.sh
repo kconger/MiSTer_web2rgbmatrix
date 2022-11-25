@@ -19,9 +19,6 @@
 . /etc/web2rgbmatrix/web2rgbmatrix-system.ini
 . /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
-# Check for and create web2rgbmatrix script folder
-[[ -d ${WEB2RGBMATRIX_PATH} ]] && cd ${WEB2RGBMATRIX_PATH} || mkdir ${WEB2RGBMATRIX_PATH}
-
 echo -e "${fgreen}web2rgbmatrix update script"
 echo -e "----------------------${freset}"
 echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
