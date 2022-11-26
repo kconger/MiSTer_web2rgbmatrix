@@ -28,7 +28,7 @@ Reboot your MiSTer and test by changing cores.
 Update
 -------
 ```
-sudo update_web2rgbmatrix_script.sh
+update_web2rgbmatrix.sh
 ```
 
 Extras
