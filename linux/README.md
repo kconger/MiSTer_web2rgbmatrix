@@ -10,7 +10,9 @@ Run "update_web2rgbmatrix.sh" on your MiSTer.  This can be done from the console
 
 Modify your "/media/fat/web2rgbmatrix/web2rgbmatrix-user.ini" to include your rgbmatrix IP address or hostname. MiSTer does not support MDNS resolution.
 
-```HOSTNAME="192.168.1.100"```
+```
+HOSTNAME="192.168.1.100"
+```
 
 Optionally there are some other user reconfigurable options for the MiSTer service at the top of "/media/fat/web2rgbmatrix/web2rgbmatrix-system.ini". Copy any setting you would like to overwrite in your "/media/fat/web2rgbmatrix/web2rgbmatrix-user.ini" file.
 
