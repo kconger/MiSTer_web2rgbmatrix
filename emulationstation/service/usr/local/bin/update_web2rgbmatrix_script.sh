@@ -33,19 +33,19 @@ if  ! [ -f ${INITSCRIPT} ]; then
     echo -e "${fyellow}Installing init script ${fmagenta}web2rgbmatrix${freset}"
     mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
+	sudo update-rc.d web2rgbmatrix defaults
   fi
 elif ! cmp -s /tmp/web2rgbmatrix ${INITSCRIPT}; then
   if [ "${SCRIPT_UPDATE}" = "true" ]; then
     echo -e "${fyellow}Updating init script ${fmagenta}web2rgbmatrix${freset}"
     mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
+	sudo update-rc.d web2rgbmatrix defaults
   else
     echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
   fi
 fi
-[[ -f /tmp/Sweb2rgbmatrix ]] && rm /tmp/Sweb2rgbmatrix
-
-sudo update-rc.d web2rgbmatrix defaults
+[[ -f /tmp/web2rgbmatrix ]] && rm /tmp/web2rgbmatrix
 
 # Update daemon
 wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/usr/local/bin/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
@@ -64,8 +64,20 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
+# Update Emulationstation scripts
+if ["${SCRIPT_UPDATE}" = "true"]; then
+  echo -e "${fyellow}Installing Emulationstation event scripts${freset}"
+  [[ -d ${ES_CONFIG_PATH}/scripts ]] && cd ${ES_CONFIG_PATH}/scripts || mkdir -p ${ES_CONFIG_PATH}/scripts
+  cd ${ES_CONFIG_PATH}/scripts
+  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/main.tar.gz | tar xz --strip=3 "MiSTer_web2rgbmatrix-master/emulationstation/scripts"
+  chown -R pi:pi ${ES_CONFIG_PATH}/scripts
+else
+  echo -e "${fblink}Skipping${fyellow} possible Emulationstation script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
+fi
+
 # Update GIFs
 if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
+  echo -e "${fyellow}Installing GIFs${freset}"
   [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
   cd ${GIF_PATH}
   if ["${GIF_UPDATE}" = "true"]; then
@@ -73,6 +85,7 @@ if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
   else
     wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
   fi
+  chown -R pi:pi ${GIF_PATH}
   if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     if [[ "${SD_INSTALLED}" = "true" && "${SD_UPDATE}" = "true" ]]; then
       cd ${GIF_PATH}/../
@@ -94,6 +107,7 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
       wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
       if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
+		echo -e "${fyellow}Installing ESP32-Trinity update${freset}"
         curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
       fi
     else

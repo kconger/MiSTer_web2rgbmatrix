@@ -77,10 +77,6 @@ fi
 
 ! [ -e web2rgbmatrix-user.ini ] && touch ${WEB2RGBMATRIX_PATH}/web2rgbmatrix-user.ini
 
-# Fixup old config files
-sed -i 's/"no"/"false"/g' ${SCRIPT_PATH}web2rgbmatrix-user.ini
-sed -i 's/"yes"/"true"/g' ${SCRIPT_PATH}web2rgbmatrix-user.ini
-
 wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/${FRONTEND}/update_web2rgbmatrix_script.sh" -O "${SCRIPTNAME}"
 check4error "${?}"
 [ -s "${SCRIPTNAME}" ] && bash "${SCRIPTNAME}" "${1}"

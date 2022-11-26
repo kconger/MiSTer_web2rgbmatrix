@@ -50,7 +50,7 @@ echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
 
 
 # init script
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/S60web2rgbmatrix" -O /tmp/S60web2rgbmatrix
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/mister/web2rgbmatrix/S60web2rgbmatrix" -O /tmp/S60web2rgbmatrix
 if  ! [ -f ${INITSCRIPT} ]; then
   if  [ -f ${INITDISABLED} ]; then
     echo -e "${fyellow}Found disabled init script, skipping Install${freset}"
@@ -72,7 +72,7 @@ fi
 
 
 # Update daemon
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/mister/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
 if  ! [ -f ${DAEMONSCRIPT} ]; then
   echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
   mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
