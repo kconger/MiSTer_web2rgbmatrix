@@ -10,14 +10,15 @@ sudo apt-get install inotify-tools
 
 **Install Emulationstation Scripts**
 ```
-cp -rpf scripts /home/pi/.emulationstation/
+sudo cp -rpf scripts /home/pi/.emulationstation/
+sudo chown -R pi:pi /home/pi/.emulationstation/scripts
 ```
 
 **Install Service Files**
 ```
-cp -rpf etc/web2rgbmatrix /etc/
-cp -rpf usr/local/bin/* /usr/local/bin/
-cp -rpf etc/init.d/web2rgbmatrix /etc/init.d/
+sudo cp -rpf etc/web2rgbmatrix /etc/
+sudo cp -rpf usr/local/bin/* /usr/local/bin/
+sudo cp -rpf etc/init.d/web2rgbmatrix /etc/init.d/
 ```
 
 **Modify Configuration**
@@ -35,7 +36,7 @@ sudo update-rc.d web2rgbmatrix defaults
 
 **Start Service**
 ```
-service web2rgbmatrix start
+sudo service web2rgbmatrix start
 ```
 
 dpkg Install
@@ -49,7 +50,7 @@ cd build
 
 **Install dpkg**
 ```
-dpkg -i web2rgbmatrix*.deb
+sudo dpkg -i web2rgbmatrix*.deb
 ```
 
 **Modify Configuration**
@@ -62,7 +63,7 @@ HOSTNAME="192.168.1.100"
 
 **Restart Service**
 ```
-service web2rgbmatrix restart
+sudo service web2rgbmatrix restart
 ```
 
 RetroPie Test
@@ -74,5 +75,5 @@ Highlighting a system in Emulationstation should display the installed GIF or te
 Update
 -------
 ```
-sudo update_web2rgbmatrix_script.sh
+sudo update_web2rgbmatrix.sh
 ```

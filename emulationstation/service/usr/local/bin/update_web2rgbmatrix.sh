@@ -25,7 +25,6 @@ fyellow="\e[1;33m"
 REPOSITORY_URL="https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/"
 REPO_BRANCH="master"
 
-FRONTEND="emulationstation"
 SCRIPT_PATH="/usr/local/bin/"
 
 SCRIPTNAME="/tmp/update_web2rgbmatrix_script.sh"
@@ -52,7 +51,7 @@ check4error() {
 }
 
 # Update the updater if neccessary
-wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/${FRONTEND}/update_web2rgbmatrix.sh" -O /tmp/update_web2rgbmatrix.sh
+wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/usr/local/bin/update_web2rgbmatrix.sh" -O /tmp/update_web2rgbmatrix.sh
 check4error "${?}"
 cmp -s /tmp/update_web2rgbmatrix.sh ${SCRIPT_PATH}update_web2rgbmatrix.sh
 if [ "${?}" -gt "0" ] && [ -s /tmp/update_web2rgbmatrix.sh ]; then
@@ -65,7 +64,7 @@ else
 fi
 
 # Check and update INI files if neccessary
-wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/${FRONTEND}/web2rgbmatrix/web2rgbmatrix-system.ini" -O /tmp/web2rgbmatrix-system.ini
+wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/etc/web2rgbmatrix/web2rgbmatrix-system.ini" -O /tmp/web2rgbmatrix-system.ini
 check4error "${?}"
 . /tmp/web2rgbmatrix-system.ini
 [[ -d "${WEB2RGBMATRIX_PATH}" ]] || mkdir "${WEB2RGBMATRIX_PATH}"
@@ -77,7 +76,7 @@ fi
 
 ! [ -e web2rgbmatrix-user.ini ] && touch ${WEB2RGBMATRIX_PATH}/web2rgbmatrix-user.ini
 
-wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/${FRONTEND}/update_web2rgbmatrix_script.sh" -O "${SCRIPTNAME}"
+wget ${NODEBUG} --no-cache "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/usr/local/bin/update_web2rgbmatrix_script.sh" -O "${SCRIPTNAME}"
 check4error "${?}"
 [ -s "${SCRIPTNAME}" ] && bash "${SCRIPTNAME}" "${1}"
 [ -f "${SCRIPTNAME}" ] && rm "${SCRIPTNAME}"
