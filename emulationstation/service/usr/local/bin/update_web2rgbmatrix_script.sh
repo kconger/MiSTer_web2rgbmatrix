@@ -15,7 +15,7 @@
 # You can download the latest version of this script from:
 # https://github.com/kconger/MiSTer_web2rgbmatrix
 
-! [ -e /etc/web2rgbmatrix//web2rgbmatrix-user.ini ] && touch /etc/web2rgbmatrix/web2rgbmatrix-user.ini
+! [ -e /etc/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 . /etc/web2rgbmatrix/web2rgbmatrix-system.ini
 . /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
@@ -25,19 +25,19 @@ echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
 
 
 # init script
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/web2rgbmatrix/web2rgbmatrix" -O /tmp/Sweb2rgbmatrix
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/etc/init.d/web2rgbmatrix" -O /tmp/web2rgbmatrix
 if  ! [ -f ${INITSCRIPT} ]; then
   if  [ -f ${INITDISABLED} ]; then
     echo -e "${fyellow}Found disabled init script, skipping Install${freset}"
   else
     echo -e "${fyellow}Installing init script ${fmagenta}web2rgbmatrix${freset}"
-    mv -f /tmp/Sweb2rgbmatrix ${INITSCRIPT}
+    mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
   fi
-elif ! cmp -s /tmp/Sweb2rgbmatrix ${INITSCRIPT}; then
+elif ! cmp -s /tmp/web2rgbmatrix ${INITSCRIPT}; then
   if [ "${SCRIPT_UPDATE}" = "true" ]; then
-    echo -e "${fyellow}Updating init script ${fmagenta}S60web2rgbmatrix${freset}"
-    mv -f /tmp/Sweb2rgbmatrix ${INITSCRIPT}
+    echo -e "${fyellow}Updating init script ${fmagenta}web2rgbmatrix${freset}"
+    mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
   else
     echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
@@ -48,7 +48,7 @@ fi
 sudo update-rc.d web2rgbmatrix defaults
 
 # Update daemon
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/usr/local/bin/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
 if  ! [ -f ${DAEMONSCRIPT} ]; then
   echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
   mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
