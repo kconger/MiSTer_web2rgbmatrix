@@ -15,34 +15,9 @@
 # You can download the latest version of this script from:
 # https://github.com/kconger/MiSTer_web2rgbmatrix
 
-! [ -e /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
-. /media/fat/web2rgbmatrix/web2rgbmatrix-system.ini
-. /media/fat/web2rgbmatrix/web2rgbmatrix-user.ini
-
-# Check for and create web2rgbmatrix script folder
-[[ -d ${WEB2RGBMATRIX_PATH} ]] && cd ${WEB2RGBMATRIX_PATH} || mkdir ${WEB2RGBMATRIX_PATH}
-
-# Check and remount root writable if neccessary
-if [ $(/bin/mount | head -n1 | grep -c "(ro,") = 1 ]; then
-  /bin/mount -o remount,rw /
-  MOUNTRO="true"
-fi
-
-if [ ! -e /media/fat/linux/user-startup.sh ] && [ -e /etc/init.d/S99user ]; then
-  if [ -e /media/fat/linux/_user-startup.sh ]; then
-    echo "Copying /media/fat/linux/_user-startup.sh to /media/fat/linux/user-startup.sh"
-    cp /media/fat/linux/_user-startup.sh /media/fat/linux/user-startup.sh
-  else
-    echo "Building /media/fat/linux/user-startup.sh"
-    echo -e "#!/bin/sh\n" > /media/fat/linux/user-startup.sh
-    echo -e 'echo "***" $1 "***"' >> /media/fat/linux/user-startup.sh
-  fi
-fi
-if [ $(grep -c "web2rgbmatrix" /media/fat/linux/user-startup.sh) = "0" ]; then
-  echo -e "Add web2rgbmatrix to /media/fat/linux/user-startup.sh\n"
-  echo -e "\n# Startup web2rgbmatrix" >> /media/fat/linux/user-startup.sh}
-  echo -e "[[ -e ${INITSCRIPT} ]] && ${INITSCRIPT} \$1" >> /media/fat/linux/user-startup.sh
-fi
+! [ -e /etc/web2rgbmatrix/web2rgbmatrix-user.ini ] && touch /etc/web2rgbmatrix/web2rgbmatrix-user.ini
+. /etc/web2rgbmatrix/web2rgbmatrix-system.ini
+. /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
 echo -e "${fgreen}web2rgbmatrix update script"
 echo -e "----------------------${freset}"
@@ -50,29 +25,30 @@ echo -e "${fgreen}Checking for available web2rgbmatrix updates...${freset}"
 
 
 # init script
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/S60web2rgbmatrix" -O /tmp/S60web2rgbmatrix
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/etc/init.d/web2rgbmatrix" -O /tmp/web2rgbmatrix
 if  ! [ -f ${INITSCRIPT} ]; then
   if  [ -f ${INITDISABLED} ]; then
     echo -e "${fyellow}Found disabled init script, skipping Install${freset}"
   else
-    echo -e "${fyellow}Installing init script ${fmagenta}S60web2rgbmatrix${freset}"
-    mv -f /tmp/S60web2rgbmatrix ${INITSCRIPT}
+    echo -e "${fyellow}Installing init script ${fmagenta}web2rgbmatrix${freset}"
+    mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
+	sudo update-rc.d web2rgbmatrix defaults
   fi
-elif ! cmp -s /tmp/S60web2rgbmatrix ${INITSCRIPT}; then
+elif ! cmp -s /tmp/web2rgbmatrix ${INITSCRIPT}; then
   if [ "${SCRIPT_UPDATE}" = "true" ]; then
-    echo -e "${fyellow}Updating init script ${fmagenta}S60web2rgbmatrix${freset}"
-    mv -f /tmp/S60web2rgbmatrix ${INITSCRIPT}
+    echo -e "${fyellow}Updating init script ${fmagenta}web2rgbmatrix${freset}"
+    mv -f /tmp/web2rgbmatrix ${INITSCRIPT}
     chmod +x ${INITSCRIPT}
+	sudo update-rc.d web2rgbmatrix defaults
   else
     echo -e "${fblink}Skipping${fyellow} available init script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
   fi
 fi
-[[ -f /tmp/S60web2rgbmatrix ]] && rm /tmp/S60web2rgbmatrix
-
+[[ -f /tmp/web2rgbmatrix ]] && rm /tmp/web2rgbmatrix
 
 # Update daemon
-wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/linux/web2rgbmatrix/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/usr/local/bin/${DAEMONNAME}" -O /tmp/${DAEMONNAME}
 if  ! [ -f ${DAEMONSCRIPT} ]; then
   echo -e "${fyellow}Installing daemon script ${fmagenta}web2rgbmatrix${freset}"
   mv -f /tmp/${DAEMONNAME} ${DAEMONSCRIPT}
@@ -88,8 +64,20 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
+# Update Emulationstation scripts
+if ["${SCRIPT_UPDATE}" = "true"]; then
+  echo -e "${fyellow}Installing Emulationstation event scripts${freset}"
+  [[ -d ${ES_CONFIG_PATH}/scripts ]] && cd ${ES_CONFIG_PATH}/scripts || mkdir -p ${ES_CONFIG_PATH}/scripts
+  cd ${ES_CONFIG_PATH}/scripts
+  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/main.tar.gz | tar xz --strip=3 "MiSTer_web2rgbmatrix-master/emulationstation/scripts"
+  chown -R pi:pi ${ES_CONFIG_PATH}/scripts
+else
+  echo -e "${fblink}Skipping${fyellow} possible Emulationstation script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
+fi
+
 # Update GIFs
 if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
+  echo -e "${fyellow}Installing GIFs${freset}"
   [[ -d ${GIF_PATH} ]] && cd ${GIF_PATH} || mkdir ${GIF_PATH}
   cd ${GIF_PATH}
   if ["${GIF_UPDATE}" = "true"]; then
@@ -97,6 +85,7 @@ if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
   else
     wget ${NODEBUG} -O - https://github.com/h3llb3nt/marquee_gifs/archive/main.tar.gz | tar xz --skip-old-files --strip=2 "marquee_gifs-main/128x32"
   fi
+  chown -R pi:pi ${GIF_PATH}
   if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     if [[ "${SD_INSTALLED}" = "true" && "${SD_UPDATE}" = "true" ]]; then
       cd ${GIF_PATH}/../
@@ -118,6 +107,7 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     if (( $(echo "$LATEST > $CURRENT" |bc -l) )); then
       wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/releases/trinity-web2rgbmatrix.ino.bin" -O /tmp/trinity-web2rgbmatrix.ino.bin
       if [ -f /tmp/trinity-web2rgbmatrix.ino.bin ]; then
+		echo -e "${fyellow}Installing ESP32-Trinity update${freset}"
         curl -F 'file=@trinity-web2rgbmatrix.ino.bin' http://${HOSTNAME}/update
       fi
     else
@@ -129,9 +119,6 @@ if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
 else
   echo -e "${fblink}Skipping${fyellow} ESP32-Trinity update because ${fcyan}HOSTNAME${fyellow} is not set in INI-Option${freset}"
 fi
-
-# Check and remount root non-writable if neccessary
-[ "${MOUNTRO}" = "true" ] && /bin/mount -o remount,ro /
 
 if [ $(pidof ${DAEMONNAME}) ]; then
   echo -e "${fgreen}Restarting init script\n${freset}"
