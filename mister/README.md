@@ -34,4 +34,4 @@ sudo update_web2rgbmatrix_script.sh
 Extras
 -------
 
-[MGL Files](mgl/README.md)
+[MGL Files](mgl/)
