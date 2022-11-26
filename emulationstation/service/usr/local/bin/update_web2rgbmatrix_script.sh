@@ -65,11 +65,11 @@ fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
 # Update Emulationstation scripts
-if ["${SCRIPT_UPDATE}" = "true"]; then
+if [ "${SCRIPT_UPDATE}" = "true" ]; then
   echo -e "${fyellow}Installing Emulationstation event scripts${freset}"
   [[ -d ${ES_CONFIG_PATH}/scripts ]] && cd ${ES_CONFIG_PATH}/scripts || mkdir -p ${ES_CONFIG_PATH}/scripts
   cd ${ES_CONFIG_PATH}/scripts
-  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/main.tar.gz | tar xz --strip=3 "MiSTer_web2rgbmatrix-master/emulationstation/scripts"
+  wget ${NODEBUG} -O - https://github.com/kconger/MiSTer_web2rgbmatrix/archive/master.tar.gz | tar xz --strip=3 "MiSTer_web2rgbmatrix-master/emulationstation/scripts"
   chown -R pi:pi ${ES_CONFIG_PATH}/scripts
 else
   echo -e "${fblink}Skipping${fyellow} possible Emulationstation script update because of the ${fcyan}SCRIPT_UPDATE${fyellow} INI-Option${freset}"
