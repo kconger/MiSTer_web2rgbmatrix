@@ -49,7 +49,7 @@ Documentation
 
 **[Configuration](docs/Configuration.md)**
 
-**[MiSTer Setup](linux/README.md)**
+**[MiSTer Setup](mister/README.md)**
 
 **[RetroPie/Emulationstation Setup](emulationstation/README.md)**
 
