@@ -3,4 +3,4 @@
 . /etc/web2rgbmatrix/web2rgbmatrix-user.ini
 
 SYSTEM=$1
-echo "$SYSTEM" > $CORENAMEFILE
+sed `cat /etc/web2rgbmatrix/corename.map | awk '{print "-e s/"$1"/"$3"/"}'`<<<"$SYSTEM" > $CORENAMEFILE

@@ -64,6 +64,17 @@ elif ! cmp -s /tmp/${DAEMONNAME} ${DAEMONSCRIPT}; then
 fi
 [[ -f /tmp/${DAEMONNAME} ]] && rm /tmp/${DAEMONNAME}
 
+# Update corename map
+wget ${NODEBUG} "${REPOSITORY_URL}${REPO_BRANCH}/emulationstation/service/etc/web2rgbmatrix/corename.map" -O /tmp/corename.map
+if  ! [ -f /etc/web2rgbmatrix/corename.map ]; then
+  echo -e "${fyellow}Installing corename map${freset}"
+  mv -f /tmp/corename.map /etc/web2rgbmatrix/corename.map
+elif ! /tmp/corename.map /etc/web2rgbmatrix/corename.map; then
+  echo -e "${fyellow}Updating corename map${freset}"
+  mv -f /tmp/corename.map /etc/web2rgbmatrix/corename.map
+fi
+[[ -f /tmp/corename.map ]] && rm /tmp/corename.map
+
 # Update Emulationstation scripts
 if [ "${SCRIPT_UPDATE}" = "true" ]; then
   echo -e "${fyellow}Installing Emulationstation event scripts${freset}"
