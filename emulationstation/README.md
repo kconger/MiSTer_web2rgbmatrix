@@ -23,7 +23,7 @@ sudo cp -rpf etc/init.d/web2rgbmatrix /etc/init.d/
 
 **Modify Configuration**
 
-Modify your /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include your rgbmatrix IP or hostname. RetroPie does not support MDNS resolution by default.
+Create a /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include your rgbmatrix IP or hostname. RetroPie does not support MDNS resolution by default.
 
 ```
 HOSTNAME="192.168.1.100"
@@ -55,7 +55,7 @@ sudo dpkg -i web2rgbmatrix*.deb
 
 **Modify Configuration**
 
-Modify your /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include your rgbmatrix IP or hostname. RetroPie does not support MDNS resolution by default.
+Create a /etc/web2rgbmatrix/web2rgbmatrix-user.ini to include your rgbmatrix IP or hostname. RetroPie does not support MDNS resolution by default.
 
 ```
 HOSTNAME="192.168.1.100"
