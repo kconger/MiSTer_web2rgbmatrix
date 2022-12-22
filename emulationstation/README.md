@@ -69,7 +69,7 @@ sudo service web2rgbmatrix restart
 RetroPie Test
 -------
 
-Highlighting a system in Emulationstation should display the installed GIF or text of the rom name on the matrix.
+Highlighting a system in Emulationstation should display the installed GIF or text of the system or MAME rom name on the matrix.
 
 
 Update

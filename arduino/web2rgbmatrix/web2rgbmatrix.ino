@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221120"
+#define VERSION "20221221"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -187,8 +187,8 @@ bool showColon = true;
 volatile bool finishedAnimating = false;
 String lastDisplayedTime = "";
 String lastDisplayedAmPm = "";
-const int y_offset = (panelResY * panels_in_Y_chain) / 2;
-const int x_offset = (panelResX) / 2;
+const int tetrisYOffset = (totalHeight) / 2;
+const int tetrisXOffset = (panelResX) / 2;
 
 // Toaster Screen Saver
 #define N_FLYERS   5 // Number of flying things
@@ -330,7 +330,7 @@ void setup(void) {
     stars[i][1] = getRandom(-25, 25);
     stars[i][2] = getRandom(0, maxDepth);
   }
-  matrix_buffer = (CRGB *)malloc(((panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain)) * sizeof(CRGB));
+  matrix_buffer = (CRGB *)malloc(((totalWidth) * (totalHeight)) * sizeof(CRGB));
   bufferClear(matrix_buffer);
 
   // Initialize Tetris clock
@@ -1454,12 +1454,10 @@ void displaySetup() {
 } /* displaySetup() */
 
 void showTextLine(String text){
-  int matrix_width = panelResX * panels_in_X_chain;
-  int matrix_heigth = panelResY * panels_in_Y_chain;
   int char_width = 6;
   int char_heigth = 8;
-  int x = (matrix_width - (text.length() * char_width)) / 2;
-  int y = (matrix_heigth - char_heigth) / 2;
+  int x = (totalWidth - (text.length() * char_width)) / 2;
+  int y = (totalHeight - char_heigth) / 2;
 
   String hexcolor = textcolor;
   hexcolor.replace("#","");
@@ -1496,6 +1494,7 @@ void showText(String text){
 // in matrix back buffer, applying horizontal clipping. Vertical clipping is
 // handled in GIFDraw() below -- y can safely be assumed valid here.
 void span(uint16_t *src, int16_t x, int16_t y, int16_t width) {
+  int16_t gifWidth = width;
   if (x >= totalWidth) return;     // Span entirely off right of matrix
   int16_t x2 = x + width - 1;      // Rightmost pixel
   if (x2 < 0) return;              // Span entirely off left of matrix
@@ -1508,7 +1507,12 @@ void span(uint16_t *src, int16_t x, int16_t y, int16_t width) {
     width -= (x2 - totalWidth + 1);
   }
   while(x <= x2) {
-    matrix_display->drawPixel(x++, y, *src++);
+    int16_t xOffset = (totalWidth - gif.getCanvasWidth()) / 2;
+    /*
+    if(totalWidth > gif.getCanvasWidth()){
+      xOffset = (totalWidth - gif.getCanvasWidth()) / 2);
+    }*/
+    matrix_display->drawPixel((x++) + xOffset, y, *src++);
   } 
 } /* span() */
 
@@ -1669,8 +1673,8 @@ void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t c
 } /* drawXbm565() */
 
 void plasmaScreenSaver() {
-  for (int x = 0; x < (panelResX * panels_in_X_chain); x++) {
-    for (int y = 0; y < (panelResY * panels_in_Y_chain); y++) {
+  for (int x = 0; x < (totalWidth); x++) {
+    for (int y = 0; y < (totalHeight); y++) {
     int16_t v = 0;
     uint8_t wibble = sin8(time_counter);
     v += sin16(x * wibble * 3 + time_counter);
@@ -1704,8 +1708,8 @@ void starfieldScreenSaver() {
 
   bufferClear(matrix_buffer);
 
-  int origin_x = (panelResX * panels_in_X_chain) / 2;
-  int origin_y = (panelResY * panels_in_Y_chain) / 2;
+  int origin_x = (totalWidth) / 2;
+  int origin_y = (totalHeight) / 2;
 
   // Iterate through the stars reducing the z co-ordinate in order to move the
   // star closer.
@@ -1720,22 +1724,22 @@ void starfieldScreenSaver() {
     }
 
     // Convert the 3D coordinates to 2D using perspective projection.
-    double k = (panelResX * panels_in_X_chain) / stars[i][2];
+    double k = (totalWidth) / stars[i][2];
     int x = static_cast<int>(stars[i][0] * k + origin_x);
     int y = static_cast<int>(stars[i][1] * k + origin_y);
 
     // Draw the star (if it is visible in the screen).
     // Distant stars are smaller than closer stars.
-    if ((0 <= x and x < (panelResX * panels_in_X_chain)) 
-      and (0 <= y and y < (panelResY * panels_in_Y_chain))) {
+    if ((0 <= x and x < (totalWidth)) 
+      and (0 <= y and y < (totalHeight))) {
       int size = (1 - stars[i][2] / maxDepth) * 4;
 
       for (int xplus = 0; xplus < size; xplus++) {
         for (int yplus = 0; yplus < size; yplus++) {
-          if ((((y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)) < (panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain))) {
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].r=r;
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].g=g;
-            matrix_buffer[(y + yplus) * (panelResX * panels_in_X_chain) + (x + xplus)].b=b;
+          if ((((y + yplus) * (totalWidth) + (x + xplus)) < (totalWidth) * (totalHeight))) {
+            matrix_buffer[(y + yplus) * (totalWidth) + (x + xplus)].r=r;
+            matrix_buffer[(y + yplus) * (totalWidth) + (x + xplus)].g=g;
+            matrix_buffer[(y + yplus) * (totalWidth) + (x + xplus)].b=b;
           }
         }
       }
@@ -1831,18 +1835,18 @@ void animationHandler() {
       bool tetris2Done = false;
       bool tetris3Done = false;
 
-      tetris1Done = tetris.drawNumbers(-6 + x_offset, 10 + y_offset, showColon);
-      tetris2Done = tetris2.drawText(56 + x_offset, 9 + y_offset);
+      tetris1Done = tetris.drawNumbers(-6 + tetrisXOffset, 10 + tetrisYOffset, showColon);
+      tetris2Done = tetris2.drawText(56 + tetrisXOffset, 9 + tetrisYOffset);
 
       // Only draw the top letter once the bottom letter is finished.
       if (tetris2Done) {
-        tetris3Done = tetris3.drawText(56 + x_offset, -1 + y_offset);
+        tetris3Done = tetris3.drawText(56 + tetrisXOffset, -1 + tetrisYOffset);
       }
 
       finishedAnimating = tetris1Done && tetris2Done && tetris3Done;
 
     } else {
-      finishedAnimating = tetris.drawNumbers(2 + x_offset, 10 + y_offset, showColon);
+      finishedAnimating = tetris.drawNumbers(2 + tetrisXOffset, 10 + tetrisYOffset, showColon);
     }
     matrix_display->flipDMABuffer();
   }
@@ -1896,10 +1900,10 @@ void handleColonAfterAnimation() {
   uint16_t colour =  showColon ? tetris.tetrisWHITE : tetris.tetrisBLACK;
   // The x position that you draw the tetris animation object
   int x = twelvehour ? -6 : 2;
-  x = x + x_offset;
+  x = x + tetrisXOffset;
   // The y position adjusted for where the blocks will fall from
   // (this could be better!)
-  int y = 10 + y_offset - (TETRIS_Y_DROP_DEFAULT * tetris.scale);
+  int y = 10 + tetrisYOffset - (TETRIS_Y_DROP_DEFAULT * tetris.scale);
   tetris.drawColon(x, y, colour);
   matrix_display->flipDMABuffer();
 } /* handleColonAfterAnimation() */
@@ -1910,17 +1914,17 @@ int getRandom(int lower, int upper) {
 } /* getRandom() */
 
 void bufferClear(CRGB *buf){
-  memset(buf, 0x00, ((panelResX * panels_in_X_chain) * (panelResY * panels_in_Y_chain)) * sizeof(CRGB)); // flush buffer to black  
+  memset(buf, 0x00, ((totalWidth) * (totalHeight)) * sizeof(CRGB)); // flush buffer to black  
 } /* bufferClear() */
 
 void matrixFill(CRGB *leds){
-  uint16_t y = (panelResY * panels_in_Y_chain);
+  uint16_t y = (totalHeight);
   do {
     --y;
-    uint16_t x = (panelResX * panels_in_X_chain);
+    uint16_t x = (totalWidth);
     do {
       --x;
-        uint16_t _pixel = y * (panelResX * panels_in_X_chain) + x;
+        uint16_t _pixel = y * (totalWidth) + x;
         matrix_display->drawPixelRGB888( x, y, leds[_pixel].r, leds[_pixel].g, leds[_pixel].b);
     } while(x);
   } while(y);
