@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221221"
+#define VERSION "20221224"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -215,12 +215,6 @@ void setup(void) {
   //Read Config
   parseConfig();
 
-  // Initialize gif object
-  gif.begin(LITTLE_ENDIAN_PIXELS);
-
-  // Initialize Display
-  displaySetup();
-
   // Initialize Wifi
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
@@ -324,6 +318,12 @@ void setup(void) {
   server.collectHeaders(headerkeys, headerkeyssize);
   server.begin();
 
+  // Initialize gif object
+  gif.begin(LITTLE_ENDIAN_PIXELS);
+
+  // Initialize Display
+  displaySetup();
+
   // Initialise the star field with random stars
   for (int i = 0; i < starCount; i++) {
     stars[i][0] = getRandom(-25, 25);
@@ -363,6 +363,7 @@ void loop(void) {
   if (config_display_on && (millis() - start_tick >= 60*1000UL)){
     config_display_on = false;
     matrix_display->clearScreen();
+    matrix_display->setBrightness8(matrix_brightness);
   }
   server.handleClient();  // Handle Web Client
   ftp_server.handleFTP(); // Handle FTP Client
@@ -1243,6 +1244,7 @@ void handleVersion(){
 
 void handleClear(){
   matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
   client_ip = {0,0,0,0};
   sd_filename = "";
   config_display_on = false;
@@ -1360,6 +1362,7 @@ void checkClientTimeout() {
         // Client gone clear display
         DBG_OUTPUT_PORT.println("Client gone, clearing display and deleting the GIF.");
         matrix_display->clearScreen();
+        matrix_display->setBrightness8(matrix_brightness);
         client_ip = {0,0,0,0};
         LittleFS.remove(gif_filename);
         sd_filename = "";
@@ -1449,8 +1452,8 @@ void displaySetup() {
 
   matrix_display = new MatrixPanel_I2S_DMA(mxconfig);
   matrix_display->begin();
-  matrix_display->setBrightness8(matrix_brightness);
   matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
 } /* displaySetup() */
 
 void showTextLine(String text){
@@ -1469,6 +1472,7 @@ void showTextLine(String text){
   byte b=(byte)(rgb);
 
   matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
   matrix_display->setTextColor(matrix_display->color565(r, g, b));
   matrix_display->setCursor(x, y);
   matrix_display->println(text);
@@ -1485,6 +1489,7 @@ void showText(String text){
   byte b=(byte)(rgb);
 
   matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
   matrix_display->setTextColor(matrix_display->color565(r, g, b));
   matrix_display->setCursor(0, 0);
   matrix_display->println(text);
@@ -1508,10 +1513,6 @@ void span(uint16_t *src, int16_t x, int16_t y, int16_t width) {
   }
   while(x <= x2) {
     int16_t xOffset = (totalWidth - gif.getCanvasWidth()) / 2;
-    /*
-    if(totalWidth > gif.getCanvasWidth()){
-      xOffset = (totalWidth - gif.getCanvasWidth()) / 2);
-    }*/
     matrix_display->drawPixel((x++) + xOffset, y, *src++);
   } 
 } /* span() */
@@ -1632,6 +1633,7 @@ int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
 void showGIF(const char *name, bool sd) {
   config_display_on = false;
   matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
   if (sd && card_mounted){
     if (gif.open(name, GIFSDOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
       DBG_OUTPUT_PORT.printf("Successfully opened GIF from SD; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
@@ -1786,6 +1788,7 @@ void toasterScreenSaver() {
   boolean resort = false;     // By default, don't re-sort depths
 
   matrix_display->clearScreen();     // Start drawing next frame
+  matrix_display->setBrightness8(matrix_brightness);
 
   for(i=0; i<N_FLYERS; i++) { // For each flyer...
 
