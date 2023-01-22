@@ -142,3 +142,26 @@ const uint8_t* const mask[] PROGMEM = {
   toastermask0, toastermask1, toastermask2, toastermask1, toastmask };
 const uint8_t* const img[]  PROGMEM = {
   toaster0    , toaster1    , toaster2    , toaster1    , toast     };
+
+#define ICON_WIFI_HEIGHT 16
+#define ICON_WIFI_WIDTH 16
+
+static const char PROGMEM icon_wifi_bmp[] =
+{
+	B01111110, B00000000,
+	B00000011, B11000000,
+	B00000000, B01110000,
+	B00000000, B00011000,
+	B01111110, B00001100,
+	B00000011, B00000100,
+	B00000001, B11000110,
+	B00000000, B01000010,
+	B01110000, B01100010,
+	B00011100, B00100011,
+	B00000110, B00110001,
+	B00000010, B00010001,
+	B01100011, B00010001,
+	B11110001, B00010001,
+	B11110001, B00010001,
+	B01100000, B00000000
+};

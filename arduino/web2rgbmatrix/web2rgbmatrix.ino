@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20221224"
+#define VERSION "20230122"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -351,8 +351,8 @@ void setup(void) {
   qsort(flyer, N_FLYERS, sizeof(struct Flyer), compare); // Sort depths
 
   // Display boot status on matrix
-  String display_string = "rgbmatrix.local\n" + my_ip.toString() + "\nWifi: " + wifi_mode + "\nSD: " + sd_status;
-  showText(display_string);
+  showStatus();
+
   start_tick = millis();
 
   DBG_OUTPUT_PORT.println("Startup Complete");
@@ -1673,6 +1673,24 @@ void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t c
     }
   }
 } /* drawXbm565() */
+
+void showStatus(){
+  String hexcolor = accentcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+  String display_string = "Wifi: " + wifi_mode +"\n" + my_ip.toString() + "\nrgbmatrix.local\nSD: " + sd_status;
+  matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
+  matrix_display->setTextColor(matrix_display->color565(r, g, b));
+  matrix_display->setCursor(0, 0);
+  matrix_display->print(display_string);
+  drawXbm565((totalWidth - ICON_WIFI_WIDTH), (totalHeight - ICON_WIFI_HEIGHT), ICON_WIFI_HEIGHT, ICON_WIFI_WIDTH, icon_wifi_bmp, matrix_display->color565(r, g, b));
+} /* showStatus() */
 
 void plasmaScreenSaver() {
   for (int x = 0; x < (totalWidth); x++) {
