@@ -9,7 +9,7 @@ The rgbmatrix pictured in this repo was built using the following materials.
 - 8x M3 brass heat set inserts for 3D printed parts
 - [ESP32-Trinity](https://esp32trinity.com/) 
 - (2) 64x32 HUB75 compatible RGB matrix from [here](https://www.aliexpress.com/item/3256801502846969.html)
-- SD Card module from [here](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
+- 3V SD Card module from [here](https://www.amazon.com/dp/B08CMLG4D6?psc=1&ref=ppx_yo2ov_dt_b_product_details)
 - 8GB SD Card that came with the DE10-Nano
 - 5V Power Supply that came with the DE10-Nano
 
