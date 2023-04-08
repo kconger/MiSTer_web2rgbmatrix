@@ -22,8 +22,8 @@ Follow the ESP32-Trinity setup [documentation](https://esp32trinity.com/setup.ht
 |---------|-------|
 |CLK|33|
 |MISO|32|
-|MOSI|21|
-|CS|22|
+|MOSI|SDA (21)|
+|CS|SCL (22)|
 |3V3|3V3|
 |GND|GND|
 
