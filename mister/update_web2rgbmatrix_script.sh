@@ -99,7 +99,7 @@ if [[ "${SD_UPDATE}" = "true" || "${GIF_UPDATE}" = "true" ]]; then
   fi
   if ! [ "${HOSTNAME}" = "rgbmatrix.local" ]; then
     if [[ "${SD_INSTALLED}" = "true" && "${SD_UPDATE}" = "true" ]]; then
-      cd ${GIF_PATH}/../
+      cd ${GIF_PATH}/
       find gifs -type f -exec curl -u rgbmatrix:password --ftp-create-dirs -T {} ftp://${HOSTNAME}/{} \;
     else
       echo -e "${fblink}Skipping${fyellow} GIF SD Card update because of the ${fcyan}GIF_UPDATE${fyellow} INI-Option${freset}"
