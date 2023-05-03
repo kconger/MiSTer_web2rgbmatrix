@@ -8,7 +8,7 @@
 	"Scripts/update_web2rgbmatrix.sh": {
 	    "hash": "b155685844e860d535439c59100c0003",
 	    "size": 3689,
-	    "url": "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master/update_web2rgbmatrix.sh"
+	    "url": "https://raw.githubusercontent.com/kconger/MiSTer_web2rgbmatrix/master/mister/update_web2rgbmatrix.sh"
 	}
     },
     "folders": {
