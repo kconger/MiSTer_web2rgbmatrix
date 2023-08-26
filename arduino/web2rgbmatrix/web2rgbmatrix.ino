@@ -43,7 +43,7 @@ char timezone[80] = DEFAULT_TIMEZONE;
 #define DEFAULT_TWELVEHOUR false
 bool twelvehour = DEFAULT_TWELVEHOUR;
 
-#define DEFAULT_SSID "MY_SSID"
+#define DEFAULT_SSID "Madsdsadsadsads"
 char ssid[80] = DEFAULT_SSID;
 
 #define DEFAULT_PASSWORD "password"
