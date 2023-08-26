@@ -37,7 +37,7 @@
 
 #define VERSION "20230122"
 
-#define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+#define DEFAULT_TIMEZONE "Europe/Warsaw" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
 
 #define DEFAULT_TWELVEHOUR false
