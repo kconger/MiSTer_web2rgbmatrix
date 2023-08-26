@@ -31,13 +31,18 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include "C:\Users\Wodan\Desktop\z linuxa\z windowsa\ARDUINO - PROJEKTY\fonty\CYBERHOUSE18pt7b.h"
+#include "C:\Users\Wodan\Desktop\z linuxa\z windowsa\ARDUINO - PROJEKTY\fonty\Carnevalee_Freakshow18pt7b.h"
+#include "C:\Users\Wodan\Desktop\z linuxa\z windowsa\ARDUINO - PROJEKTY\fonty\advanced_led_board_718pt7b.h"
+#include "C:\Users\Wodan\Desktop\z linuxa\z windowsa\ARDUINO - PROJEKTY\fonty\Zatiyan18pt7b.h"
+#include <C:\Users\Wodan\Desktop\z linuxa\z windowsa\ARDUINO - PROJEKTY\fonty\Arcade20pt7b.h>
 
 #include "bitmaps.h"
 
 
 #define VERSION "20230122"
 
-#define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+#define DEFAULT_TIMEZONE "Africa/Casablanca" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
 
 #define DEFAULT_TWELVEHOUR false
@@ -58,19 +63,19 @@ char ap_password[80] = DEFAULT_PASSWORD;
 #define DEFAULT_HOSTNAME "rgbmatrix"
 char hostname[80] = DEFAULT_HOSTNAME;
 
-#define DEFAULT_TEXT_COLOR "#FFFFFF" // White
+#define DEFAULT_TEXT_COLOR "#0313fc" //"#FFFFFF" // White
 String textcolor = DEFAULT_TEXT_COLOR;
 
-#define DEFAULT_BRIGHTNESS 255
+#define DEFAULT_BRIGHTNESS 100 //255
 uint8_t matrix_brightness = DEFAULT_BRIGHTNESS;
 
 #define DEFAULT_GIF_PLAYBACK "Both" // Animated | Static | Both | Fallback
 String playback = DEFAULT_GIF_PLAYBACK;
 
-#define DEFAULT_SCREENSAVER "Blank" // Blank | Clock | Plasma | Starfield | Toasters
+#define DEFAULT_SCREENSAVER "blank" //"Blank" // Blank | Clock | Plasma | Starfield | Toasters
 String screensaver = DEFAULT_SCREENSAVER;
 
-#define DEFAULT_SCREENSAVER_COLOR "#FFFFFF" // White
+#define DEFAULT_SCREENSAVER_COLOR "#fc4e03" //"#FFFFFF" // White
 String accentcolor = DEFAULT_SCREENSAVER_COLOR;
 
 #define DEFAULT_PING_FAIL_COUNT 2 // 30s increments, set to '0' to disable client ping check
@@ -100,7 +105,7 @@ char animated_gif_folder[80] = DEFAULT_SD_ANIMATED_GIF_FOLDER;
 #define SD_SS 22
 // Matrix Alt Config Pin - Connect to ground to swap Blue/Green
 #define ALT 2
-
+#define ENABLE_DOUBLE_BUFFER 1
 SPIClass spi = SPIClass(HSPI);
 
 // Matrix Config
@@ -113,6 +118,40 @@ const int panels_in_Y_chain = 1; // Total number of panels in Y
 const int totalWidth  = panelResX * panels_in_X_chain;
 const int totalHeight = panelResY * panels_in_Y_chain;
 int16_t xPos = 0, yPos = 0; // Top-left pixel coord of GIF in matrix space
+
+unsigned long isAnimationDue;
+int delayBetweeenAnimations = 18;  // Smaller == faster
+
+int textXPosition = panelResX * panels_in_X_chain;  // Will start off screen
+int textYPosition = panelResY / 2 - 7;              // center of screen - 8 (half of the text height)
+
+///początek
+unsigned long milliseconds = 0;
+unsigned long previousMillidecondsKnob = 0;
+int knobMillisecondInterval = 12;
+unsigned long milisekundy = 0;
+unsigned long poprzednieMiliPrze = 0;
+int interwalPrzelacznikMili = 12;
+///koniec
+
+uint16_t myBLACK = matrix_display->color565(0, 0, 0);
+uint16_t myWHITE = matrix_display->color565(255, 255, 255);
+uint16_t myRED = matrix_display->color565(255, 0, 0);
+uint16_t myGREEN = matrix_display->color565(0, 255, 0);
+uint16_t myBLUE = matrix_display->color565(0, 0, 255);
+uint16_t myYELLOW = matrix_display->color565(255, 255, 0);
+uint16_t myMAGENTA = matrix_display->color565(255, 0, 255);
+uint16_t myCYAN = matrix_display->color565(0, 255, 255);
+uint16_t mySkyBlue = matrix_display->color565(10, 115, 207);
+uint16_t myTURK = matrix_display->color565(12, 204, 172);
+uint16_t myJANT = matrix_display->color565(176, 71, 5);
+uint16_t myLGREEN = matrix_display->color565(59, 247, 12);
+uint16_t myPURPLE = matrix_display->color565(134, 9, 217);
+uint16_t myGREY = matrix_display->color565(81, 87, 89);
+int16_t xOne, yOne;
+uint16_t w, h;
+uint8_t wheelval = 0;
+uint8_t colorWheelBorderOffset = 0;
 
 WebServer server(80);
 IPAddress my_ip;
@@ -153,6 +192,7 @@ File gif_file, upload_file;
 String new_command = "";
 String current_command = "";
 AnimatedGIF gif;
+String text = DBG_OUTPUT_PORT.readStringUntil('\n'); //added
 
 // Plasma Screen Saver
 uint16_t time_counter = 0, cycles = 0;
@@ -177,7 +217,7 @@ CRGB *matrix_buffer;
 // When true, all digits will be replaced every minute.
 bool forceRefresh = true;
 unsigned long animationDue = 0;
-unsigned long animationDelay = 100; // Smaller number == faster
+unsigned long animationDelay = 30; // Smaller number == faster
 TetrisMatrixDraw tetris(*matrix_display); // Main clock
 TetrisMatrixDraw tetris2(*matrix_display); // The "M" of AM/PM
 TetrisMatrixDraw tetris3(*matrix_display); // The "P" or "A" of AM/PM
@@ -189,6 +229,13 @@ String lastDisplayedTime = "";
 String lastDisplayedAmPm = "";
 const int tetrisYOffset = (totalHeight) / 2;
 const int tetrisXOffset = (panelResX) / 2;
+
+
+bool uploading = false;
+String th_filePath = "";
+bool th_isExternalDevice;
+bool allowPlaying = true;
+bool isPlayable = false; 
 
 // Toaster Screen Saver
 #define N_FLYERS   5 // Number of flying things
@@ -360,7 +407,7 @@ void setup(void) {
 
 void loop(void) {
   // Clear initial boot display after 1min
-  if (config_display_on && (millis() - start_tick >= 60*1000UL)){
+  if (config_display_on && (millis() - start_tick >= 5*1000UL)){
     config_display_on = false;
     matrix_display->clearScreen();
     matrix_display->setBrightness8(matrix_brightness);
@@ -1385,10 +1432,32 @@ void checkSerialClient() {
     new_command.trim();
   }  
   if (new_command != current_command) {
-    if (new_command.endsWith("QWERTZ"));
-    else if (new_command.startsWith("CMD"));
-    else if (new_command == "cls");
-    else if (new_command == "sorg");
+    if (new_command.endsWith("QWERTZ"))
+    {
+     scrollString(new_command);
+    }
+    else if (new_command.startsWith("CMD"))
+    {
+     matrix_display->clearScreen();
+     printTextRainbow(9,"Multicolor Text Test ",1,12); 
+    }
+    else if (new_command == "cls")// call for screensaver
+    {
+     handleClear();  
+    }
+    else if (new_command == "sorg")
+    {
+     TextTable(); 
+    }
+    else if (new_command == "/test")
+    {
+     myTextString(new_command); 
+    }
+    else if (new_command == "/clock")
+    {
+     matrix_display->clearScreen();
+     clockScreenSaverMod(); 
+    }
     else if (new_command == "bye");
     else {
       tty_client = true;
@@ -1420,7 +1489,9 @@ void checkSerialClient() {
       }
       if(!gif_found) {
         sd_filename = "";
-        showTextLine(new_command);
+        delay(3);
+        myTextString(new_command);
+        //showTextLine(new_command);
       }
     }
     current_command = new_command;
@@ -1448,52 +1519,238 @@ void displaySetup() {
     mxconfig.gpio.g1 = B1;
     mxconfig.gpio.g2 = B2;    
   }
+   /* #ifdef ENABLE_DOUBLE_BUFFER
+  // This is how you enable the double buffer.
+  // Double buffer can help with animation heavy projects
+  mxconfig.double_buff = true;
+  //mxconfig.double_buff = false;
+  #endif*/
   mxconfig.clkphase = false;
 
   matrix_display = new MatrixPanel_I2S_DMA(mxconfig);
   matrix_display->begin();
   matrix_display->clearScreen();
   matrix_display->setBrightness8(matrix_brightness);
+  matrix_display->setTextWrap(false);
+
 } /* displaySetup() */
 
-void showTextLine(String text){
-  int char_width = 6;
-  int char_heigth = 8;
-  int x = (totalWidth - (text.length() * char_width)) / 2;
-  int y = (totalHeight - char_heigth) / 2;
 
-  String hexcolor = textcolor;
-  hexcolor.replace("#","");
-  char charbuf[8];
-  hexcolor.toCharArray(charbuf,8);
-  long int rgb=strtol(charbuf,0,16);
-  byte r=(byte)(rgb>>16);
-  byte g=(byte)(rgb>>8);
-  byte b=(byte)(rgb);
-
+void myTextString(String text) {
   matrix_display->clearScreen();
-  matrix_display->setBrightness8(matrix_brightness);
-  matrix_display->setTextColor(matrix_display->color565(r, g, b));
-  matrix_display->setCursor(x, y);
-  matrix_display->println(text);
-} /* showTextLine() */
+  // For scrolling Text
+  unsigned long isTextAnimationDue;
+  int delayBetweeenTextAnimations = 13;  // Smaller == faster
+  int textYPosition = panelResY / 1 - 7;             // center of screen - 8 (half of the text height)
+  
 
-void showText(String text){
-  String hexcolor = textcolor;
-  hexcolor.replace("#","");
-  char charbuf[8];
-  hexcolor.toCharArray(charbuf,8);
-  long int rgb=strtol(charbuf,0,16);
-  byte r=(byte)(rgb>>16);
-  byte g=(byte)(rgb>>8);
-  byte b=(byte)(rgb);
+    for (;;) {
+    unsigned long teraz = millis();
+    if (teraz > isTextAnimationDue) {
+      isTextAnimationDue = teraz + delayBetweeenTextAnimations;
 
+      textXPosition -= 1;
+
+      // Checking is the very right of the text off screen to the left
+      matrix_display->getTextBounds(text, textXPosition, textYPosition, &xOne, &yOne, &w, &h);
+      if (textXPosition + w <= 0) {
+        textXPosition = 129;
+       }
+      
+
+      matrix_display->setCursor(textXPosition, textYPosition);
+      matrix_display->fillScreen(myBLACK);
+      matrix_display->setTextColor(myJANT);
+      matrix_display->setFont(&Carnevalee_Freakshow18pt7b);
+      matrix_display->setTextSize(1);      // size 2 == 16 pixels high
+      matrix_display->setTextWrap(false);  // N.B!! Don't wrap at end of line
+      //dma_display->fillRect(0, textYPosition, dma_display->width(), 0, myGREEN);
+      if (DBG_OUTPUT_PORT.available())
+      text = DBG_OUTPUT_PORT.readStringUntil('\n');
+
+      
+       matrix_display->print(text);
+
+    
+#ifdef ENABLE_DOUBLE_BUFFER
+
+     // matrix_display->flipDMABuffer();
+
+#endif    
+    }  
+    if ((DBG_OUTPUT_PORT.available()) && (new_command =! gif_filename)) 
+          break;
+   }  
+
+   matrix_display->setFont();
+}
+
+void TextTable() {
+  LittleFS.remove(gif_filename);
   matrix_display->clearScreen();
-  matrix_display->setBrightness8(matrix_brightness);
-  matrix_display->setTextColor(matrix_display->color565(r, g, b));
-  matrix_display->setCursor(0, 0);
-  matrix_display->println(text);
-} /* showText() */
+   matrix_display->setFont();
+  
+  for (;;) {
+    {
+      milliseconds = millis();
+
+      if (milliseconds - previousMillidecondsKnob >= knobMillisecondInterval) {
+        previousMillidecondsKnob = milliseconds;
+        //drawBorder(myBLACK);
+        //drawBorder(myCYAN);
+        drawBorderRainbow(2, 64);
+
+        printTextRainbow(wheelval, "COIN-OP ARCADE HEAVEN", 1, 1);
+        //printText(myGREEN, "WELCOME", 11, 1);
+
+        scrollText(wheelval, "TESTING MODIFIED ESP32 WEB2RGBMATRIX CODE ON BATOCERA");
+
+        printTextRainbow(wheelval, "RETRO ARCADE PARADISE", 2, 24);
+        //printText(myMAGENTA, "ENJOY IT!", 8, 24);
+        wheelval += 2;
+        //colorWheelOffset += 5;
+        //scrollString("HELLO ARCADE FANS");
+        //delay(8);
+        //scrollString("I Wish you have a Wonderful day full of Joy and Blessings");
+        // scrollString("I Wish you have a Wonderful day!");
+      }
+    }
+    if ((DBG_OUTPUT_PORT.available()) && (current_command != "sorg"))
+      break;
+  }
+  matrix_display->clearScreen();
+}
+
+void drawBorderRainbow(int sPeed, int colors) {  // draw a box in Rainbow color
+  matrix_display->drawRect(0, 0, matrix_display->width(), matrix_display->height(), colorWheel(colors + colorWheelBorderOffset));
+  colorWheelBorderOffset += sPeed;
+}
+
+void drawBorder(uint16_t color) {  // draw a box in a chosen color
+  int w = matrix_display->width();
+  int h;
+  matrix_display->drawLine(w, 0, 0, 0, color);
+  //matrix_display->drawChar(1, 1, 'A', myMAGENTA, myMAGENTA, 1);
+}
+
+void printTextRainbow(int colorWheelOffset, const char *text, int xPos, int yPos) {
+  uint8_t w = 0;
+  // draw text with a rotating colour
+  matrix_display->setTextSize(1);  // size 1 == 8 pixels high
+
+  matrix_display->setCursor(xPos, yPos);  // start at top left, with 8 pixel of spacing
+  const char *str = text;
+  for (w = 0; w < strlen(text); w++) {
+    matrix_display->setTextColor(colorWheel((w * 32) + colorWheelOffset));
+    matrix_display->print(text[w]);
+  }
+}
+
+void printText(uint16_t color, const char *text, int xPos, int yPos) {
+  uint8_t w = 0;
+  matrix_display->setTextSize(1);         // size 1 == 8 pixels high
+  matrix_display->setCursor(xPos, yPos);  // start at top left, with 8 pixel of spacing
+  const char *str = text;
+  matrix_display->setTextColor(color);
+  matrix_display->print(str);
+}
+
+void scrollText(int colorWheelOffset, const char *text) {
+  //matrix_display->flipDMABuffer(); // not used if double buffering isn't enabled
+  //  delay(25);
+  //  matrix_display->clearScreen();
+
+  //String text = "AND HAVE A WONDERFUL DAY!";
+  //const char *str = "" ;
+  const char *str = text;
+  byte offSet = 0;
+  unsigned long now = millis();
+  if (now > isAnimationDue) {
+
+    matrix_display->setTextSize(2);  // size 2 == 16 pixels high
+     //matrix_display->setFont(&FreeSansBold12pt7b);
+    //matrix_display->setTextColor(myBLUE);
+    isAnimationDue = now + delayBetweeenAnimations;
+
+    textXPosition -= 1;
+
+    // Checking is the very right of the text off screen to the left
+    matrix_display->getTextBounds(str, textXPosition, textYPosition, &xOne, &yOne, &w, &h);
+    if (textXPosition + w <= 0) {
+      textXPosition = matrix_display->width() + offSet;
+    }
+
+    matrix_display->setCursor(textXPosition, textYPosition);
+    matrix_display->drawRect(0, textYPosition, 2, 14, myBLACK);
+    matrix_display->fillRect(0, textYPosition, 128, 14, myBLACK);
+    uint8_t w = 0;
+    for (w = 0; w < strlen(str); w++) {
+     
+      matrix_display->setTextColor(colorWheel((w * 64) + colorWheelOffset));
+      matrix_display->print(str[w]);
+    }
+
+    matrix_display->flipDMABuffer();  // not used if double buffering isn't enabled
+  }
+}
+
+void scrollString(String str) {
+  int textYPosition1 = panelResY / 1 - 7;  // center of screen - 8 (half of the text height)
+  matrix_display->getTextBounds(str, textXPosition, textYPosition1, &xOne, &yOne, &w, &h);
+  int yoff = 1;
+
+  //matrix_display->setFont(&FreeMono18pt7b);
+  matrix_display->setTextSize(2);  // size 2 == 16 pixels high
+  //matrix_display->setTextSize(4);
+
+  int charWidth = 10;  // textsize 2 @todo auto calculate charwidth from font
+
+  int pxwidth = w;
+  for (int16_t x = matrix_display->width(); x >= 0 - w; x--) {
+    matrix_display->clearScreen();
+    matrix_display->setTextColor(myTURK);
+    matrix_display->setCursor(x, yoff);
+
+    matrix_display->print(str);
+    delay(15);
+  }
+  matrix_display->flipDMABuffer();  // not used if double buffering isn't enabled
+}
+
+
+
+
+void drawText(int colorWheelOffset) {
+  // matrix_display->flipDMABuffer(); // not used if double buffering isn't enabled
+  // draw text with a rotating colour
+  matrix_display->setTextSize(1);  // size 1 == 8 pixels high
+  //matrix_display->setTextWrap(false); // Don't wrap at end of line - will do ourselves
+
+  matrix_display->setCursor(5, 0);  // start at top left, with 8 pixel of spacing
+  uint8_t w = 0;
+  //const char *str = "ESP32 DMA";
+  const char *str = "Hi Welcome!";
+  for (w = 0; w < strlen(str); w++) {
+    matrix_display->setTextColor(colorWheel((w * 32) + colorWheelOffset));
+    matrix_display->print(str[w]);
+  }
+}
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+// From: https://gist.github.com/davidegironi/3144efdc6d67e5df55438cc3cba613c8
+uint16_t colorWheel(uint8_t pos) {
+  if (pos < 85) {
+    return matrix_display->color565(pos * 3, 255 - pos * 3, 0);
+  } else if (pos < 170) {
+    pos -= 85;
+    return matrix_display->color565(255 - pos * 3, 0, pos * 3);
+  } else {
+    pos -= 170;
+    return matrix_display->color565(0, pos * 3, 255 - pos * 3);
+  }
+}
+
 
 // Copy a horizontal span of pixels from a source buffer to an X,Y position
 // in matrix back buffer, applying horizontal clipping. Vertical clipping is
@@ -1634,6 +1891,8 @@ void showGIF(const char *name, bool sd) {
   config_display_on = false;
   matrix_display->clearScreen();
   matrix_display->setBrightness8(matrix_brightness);
+  for (;;) {
+  
   if (sd && card_mounted){
     if (gif.open(name, GIFSDOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
       DBG_OUTPUT_PORT.printf("Successfully opened GIF from SD; Canvas size = %d x %d\n", gif.getCanvasWidth(), gif.getCanvasHeight());
@@ -1649,7 +1908,11 @@ void showGIF(const char *name, bool sd) {
       gif.close();
     }
   }
-} /* showGIF() */
+      if ((DBG_OUTPUT_PORT.available()) && (current_command != new_command))
+      break;
+  }
+}
+ /* showGIF() */
 
 void drawXbm565(int x, int y, int width, int height, const char *xbm, uint16_t color = 0xffff) {
   if (width % 8 != 0) {
@@ -1791,6 +2054,37 @@ void clockScreenSaver() {
   }
 }
 
+
+//
+void clockScreenSaverMod() {
+  unsigned long now = millis();
+   for (;;) {
+  if (now > oneSecondLoopDue) {
+    // We can call this often, but it will only
+    // update when it needs to
+    setMatrixTime();
+    showColon = !showColon;
+
+    // To reduce flicker on the screen we stop clearing the screen
+    // when the animation is finished, but we still need the colon to
+    // to blink
+    if (finishedAnimating) {
+      handleColonAfterAnimation();
+    }
+    oneSecondLoopDue = now + 1000;
+  }
+  now = millis();
+  if (now > animationDue) {
+    animationHandler();
+    animationDue = now + animationDelay;
+  }
+      if ((DBG_OUTPUT_PORT.available()) && (current_command != "/clock"))
+      break;
+  }
+  matrix_display->clearScreen();
+}
+
+//
 void toasterScreenSaver() {
   String hexcolor = accentcolor;
   hexcolor.replace("#","");
@@ -1950,3 +2244,42 @@ void matrixFill(CRGB *leds){
     } while(x);
   } while(y);
 } /* matrixFill() */
+
+void showTextLine(String text){
+  int char_width = 6;
+  int char_heigth = 8;
+  int x = (totalWidth - (text.length() * char_width)) / 2;
+  int y = (totalHeight - char_heigth) / 2;
+
+  String hexcolor = textcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
+  matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
+  matrix_display->setTextColor(matrix_display->color565(r, g, b));
+  matrix_display->setCursor(x, y);
+  matrix_display->println(text);
+} /* showTextLine() */
+
+void showText(String text){
+  String hexcolor = textcolor;
+  hexcolor.replace("#","");
+  char charbuf[8];
+  hexcolor.toCharArray(charbuf,8);
+  long int rgb=strtol(charbuf,0,16);
+  byte r=(byte)(rgb>>16);
+  byte g=(byte)(rgb>>8);
+  byte b=(byte)(rgb);
+
+  matrix_display->clearScreen();
+  matrix_display->setBrightness8(matrix_brightness);
+  matrix_display->setTextColor(matrix_display->color565(r, g, b));
+  matrix_display->setCursor(0, 0);
+  matrix_display->println(text);
+} /* showText() */
