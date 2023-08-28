@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20230122"
+#define VERSION "20230828"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -435,22 +435,26 @@ void handleRoot() {
   if (server.method() == HTTP_GET) {
     String image_status = "";
     if (LittleFS.exists(gif_filename)){
+      String gif_filename_http = String(gif_filename);
+      gif_filename_http.replace(" ", "%20");
       image_status = "<tr>"
        "<td>Client</td>"
        "<td>" + client_ip.toString() + "</td>"
        "</tr>"
        "<tr>"
        "<td>Current Image</td>"
-       "<td><img src=\"" + String(gif_filename) + "\"><img></td>"
+       "<td><img src=\"" + gif_filename_http + "\"><img></td>"
        "</tr>";
     } else if (sd_filename != ""){
+      String sd_filename_http = String(sd_filename);
+      sd_filename_http.replace(" ", "%20");
       image_status = "<tr>"
        "<td>Client</td>"
        "<td>" + ((tty_client) ? "Serial" : client_ip.toString()) + "</td>"
        "</tr>"
        "<tr>"
        "<td>Current Image</td>"
-       "<td><img src=\"" + String(sd_filename) + "\"><img></td>"
+       "<td><img src=\"" + sd_filename_http + "\"><img></td>"
        "</tr>";
     }
     String html =
@@ -1321,11 +1325,13 @@ void handleNotFound() {
   }
   
   File data_file;
-  if (LittleFS.exists(path.c_str())) {
-    data_file = LittleFS.open(path.c_str());
+  String local_path = path.c_str();
+  local_path.replace("%20"," ");
+  if (LittleFS.exists(local_path)) {
+    data_file = LittleFS.open(local_path);
   } else if (card_mounted) {
-    if (SD.exists(path.c_str())) {
-      data_file = SD.open(path.c_str());
+    if (SD.exists(local_path)) {
+      data_file = SD.open(local_path);
     } else {
       returnHTTPError(404, "File Not Found");
     }

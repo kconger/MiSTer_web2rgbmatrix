@@ -34,9 +34,10 @@ dbug() {
 
 # Send Core GIF image over the web
 senddata() {
+  CORE=${1// /%20}
   if [ "${SD_INSTALLED}" = "true" ]; then
     dbug "Requesting matrix to display GIF from its SD Card File"
-    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${1} --output /dev/null --silent) # request CORENAME
+    HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/localplay?file=${CORE} --output /dev/null --silent) # request CORENAME
     case $HTTP_CODE in
       "200")
         echo "Successfully requested ${1}"
@@ -55,7 +56,7 @@ senddata() {
     dbug "Trying to send GIF to matrix"
     LTR=$(echo "${1:0:1}" | tr [a-z] [A-Z])
     if [ -r ${GIF_PATH}/animated/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/animated/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F 'file=@${GIF_PATH}/animated/${LTR}/${1}.gif' http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
       case $HTTP_CODE in
         "200")
           echo "Successfully copied ${GIF_PATH}/animated/${LTR}/${1}.gif to matrix"
@@ -71,7 +72,7 @@ senddata() {
           ;;
       esac
     elif [ -r ${GIF_PATH}/static/${LTR}/${1}.gif ]; then                                     # proceed if file exists and is readable (-r)
-      HTTP_CODE=$(curl --write-out "%{http_code}" -F file=@${GIF_PATH}/static/${LTR}/${1}.gif http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
+      HTTP_CODE=$(curl --write-out "%{http_code}" -F 'file=@${GIF_PATH}/static/${LTR}/${1}.gif' http://${HOSTNAME}/remoteplay --output /dev/null --silent) # transfer CORENAME.gif
       case $HTTP_CODE in
         "200")
           echo "Successfully copied ${GIF_PATH}/static/${LTR}/${1}.gif to matrix"
@@ -89,7 +90,7 @@ senddata() {
     else                                                                     # CORENAME.gif file not found
       echo "File ${GIF_PATH}/static/${LTR}/${1}.gif not found!"
       dbug "File ${GIF_PATH}/static/${LTR}/${1}.gif not found!"
-      HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/text?line=${1} --output /dev/null --silent) # request Core Name as text
+      HTTP_CODE=$(curl --write-out "%{http_code}" http://${HOSTNAME}/text?line=${CORE} --output /dev/null --silent) # request Core Name as text
       case $HTTP_CODE in
         "200")
           echo "Successfully requested text display: ${1}"
