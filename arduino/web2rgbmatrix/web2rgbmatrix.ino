@@ -35,7 +35,7 @@
 #include "bitmaps.h"
 
 
-#define VERSION "20230828"
+#define VERSION "20231119"
 
 #define DEFAULT_TIMEZONE "America/Denver" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 char timezone[80] = DEFAULT_TIMEZONE;
@@ -366,7 +366,7 @@ void loop(void) {
     matrix_display->setBrightness8(matrix_brightness);
   }
   server.handleClient();  // Handle Web Client
-  ftp_server.handleFTP(); // Handle FTP Client
+  if(card_mounted) ftp_server.handleFTP(); // Handle FTP Client
   checkSerialClient();    // tty2x Client Check
   checkClientTimeout();   // Client Timeout Check
 } /* loop() */
