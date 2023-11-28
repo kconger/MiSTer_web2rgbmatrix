@@ -4,6 +4,7 @@ Current Cores
 -------
 - SG-1000 using the Colecovision core, set name SG1000
 - SuperGrafx using the TG16 core, set name SuperGrafx
+- Amiga CDTV using the Minimig core, set name AmigaCDTV
 
 Install
 -------
