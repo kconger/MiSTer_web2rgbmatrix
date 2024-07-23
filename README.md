@@ -21,6 +21,7 @@ Current Features
 - [MiSTer FPGA](https://github.com/MiSTer-devel)/[RetroPie](https://retropie.org.uk/): Text fallback for missing GIFs
 - [MiSTer FPGA](https://github.com/MiSTer-devel)/[RetroPie](https://retropie.org.uk/): Store GIFs on system, storing on the requesting system introduces a playback delay due to the transfer
 - [MiSTer FPGA](https://github.com/MiSTer-devel)/[RetroPie](https://retropie.org.uk/): Update Script
+- [Batocera](https://batocera.org/): Very basic script that shows animated and/or static GIF of the current running MAME game or emulator.
 
 Requirements
 -------
