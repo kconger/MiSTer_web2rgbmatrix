@@ -55,6 +55,8 @@ Documentation
 
 **[RetroPie/Emulationstation Setup](emulationstation/README.md)**
 
+**[Batocera Setup](batocera/README.md)**
+
 **[API](docs/API.md)**
 
 
